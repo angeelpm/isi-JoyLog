@@ -12,9 +12,7 @@ Resumen: 38 requisitos funcionales y 10 no funcionales organizados en categoría
 
 ### Diagrama de Arquitectura
 
-```
-[Arquitectura](mockups/Arquitectura_JoyLog.png)
-```
+![Arquitectura](mockups/Arquitectura_JoyLog.png)
 
 ### Flujo de datos principal
 
