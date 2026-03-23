@@ -166,19 +166,21 @@ node proto-mongodb.js   # Requiere MONGODB_URI en .env
 
 #### 6.1 Dashboard / Biblioteca
 ![Dashboard - Biblioteca de juegos](mockups/dashboard.png)
+![Dashboard IA - Biblioteca de juegos](mockups/dashboard_IA.png)
 - Vista de tarjetas con portada, título, estado y nota
 - Filtros laterales por estado, plataforma y género
 - Barra de búsqueda arriba
 - Navbar: Biblioteca | Buscar | Perfil
 
 #### 6.2 Búsqueda de Juegos
-![Búsqueda de juegos](mockups/search.png)
+![Búsqueda de juegos](mockups/search_IA.png)
 - Campo de búsqueda prominente
 - Resultados en grid con portada, título, plataformas y metacritic
 - Botón "Añadir a biblioteca" en cada resultado
 
 #### 6.3 Ficha de Juego
 ![Ficha detallada de juego](mockups/game_detail.png)
+![Ficha detallada de juego - IA](mockups/game_detail_IA.png)
 - Portada grande, título, género, plataformas
 - Sección de reseñas de la comunidad
 - Sección de ofertas/precios de tiendas
@@ -186,6 +188,7 @@ node proto-mongodb.js   # Requiere MONGODB_URI en .env
 
 #### 6.4 Perfil de Usuario
 ![Perfil con estadísticas](mockups/profile.png)
+![Perfil con estadísticas - IA](mockups/profile_IA.png)
 - Avatar, nombre, bio
 - Estadísticas: juegos totales, horas jugadas, % completados
 - Gráfico por géneros
