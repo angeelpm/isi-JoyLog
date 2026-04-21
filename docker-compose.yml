@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: joylog_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - joylog-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: joylog_backend
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - MONGODB_URI=mongodb://mongodb:27017/joylog
+    volumes:
+      - ./backend:/usr/src/app
+      - ./shared:/usr/src/shared
+      - /usr/src/app/node_modules
+    depends_on:
+      - mongodb
+    networks:
+      - joylog-net
+    command: npm run dev
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: joylog_frontend
+    ports:
+      - "5173:5173" 
+    environment:
+      - VITE_API_URL=http://localhost:3000
+    volumes:
+      - ./frontend:/usr/src/app
+      - ./shared:/usr/src/shared
+      - /usr/src/app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - joylog-net
+    command: npm run dev
+
+volumes:
+  mongodb_data:
+
+networks:
+  joylog-net:
+    driver: bridge
