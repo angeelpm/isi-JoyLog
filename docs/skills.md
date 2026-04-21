@@ -86,3 +86,13 @@ joylog/
 │   ├── tests/
 │   └── package.json
 └── README.md
+
+## 🤖 Registro de Cambios y Contexto para IA (AI Context & Roadmap)
+> **Instrucción obligatoria para IAs futuras:** Revisa siempre esta sección para conocer el estado preciso del proyecto antes de generar código. Cada vez que realices un cambio estructural o agregues una nueva funcionalidad, DEBES agregar una entrada a este historial explicando brevemente los ficheros modificados y su función en el código.
+
+### [Sprint 3] - Inicialización y Containerización
+* **Fecha:** Abril 2026
+* **Funciones implementadas y contexto de código:**
+  - `docker-compose.yml`: Orquesta la infraestructura de la app mediante 3 contenedores separados (`mongodb`, `backend`, `frontend`) bajo una misma red (`joylog-net`).
+  - `/backend/...` y `/frontend/...`: Se ha definido la jerarquía de carpetas necesaria para un patrón MVC (backend) y basado en componentes (frontend). Ambas cuentan con un `Dockerfile` base de desarrollo (`node:20-alpine`).
+  - `/shared/types/interfaces.ts`: Punto único de verdad para las definiciones de TypeScript compartidas entre el cliente (React) y la API (Mongoose).
