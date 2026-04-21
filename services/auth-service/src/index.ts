@@ -13,10 +13,10 @@ app.use(express.json());
 // Main entry
 const start = async () => {
     await connectDB();
-    
+
     // Rutas de Core
     app.use('/', authRoutes);
-    
+
     app.get('/api/auth/health', (req, res) => {
         res.json({ status: 'Auth service is running' });
     });

@@ -58,33 +58,19 @@
 
 joylog/
 ├── docker-compose.yml         # Orquestador para levantar Backend, Frontend y MongoDB en local
+├── package.json               # Configuración de NPM Workspaces
 ├── docs/
 │   └── skills.md              # Documento de planificación actualizado
 ├── shared/
 │   └── types/
 │       └── interfaces.ts      # Tipos compartidos
-├── backend/
-│   ├── Dockerfile             # Receta para construir la imagen de Node.js
-│   ├── .dockerignore          # Para evitar copiar node_modules e ignorar archivos pesados
-│   ├── src/
-│   │   ├── models/            # Esquemas de Mongoose
-│   │   ├── controllers/
-│   │   ├── services/          # Wrappers para APIs
-│   │   ├── routes/
-│   │   └── middleware/
-│   ├── tests/
-│   ├── package.json
-│   └── .env
+├── services/
+│   ├── api-gateway/           # Puerta de enlace (API Gateway)
+│   ├── auth-service/          # Microservicio de Autenticación
+│   └── library-service/       # Microservicio de Biblioteca
 ├── frontend/
 │   ├── Dockerfile             # Receta para construir la imagen del Frontend
-│   ├── .dockerignore
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   └── hooks/
-│   ├── tests/
-│   └── package.json
+│   └── package.json           # Paquete en el entorno Workspaces
 └── README.md
 
 ## 🤖 Registro de Cambios y Contexto para IA (AI Context & Roadmap)
@@ -96,3 +82,13 @@ joylog/
   - `docker-compose.yml`: Orquesta la infraestructura de la app mediante 3 contenedores separados (`mongodb`, `backend`, `frontend`) bajo una misma red (`joylog-net`).
   - `/backend/...` y `/frontend/...`: Se ha definido la jerarquía de carpetas necesaria para un patrón MVC (backend) y basado en componentes (frontend). Ambas cuentan con un `Dockerfile` base de desarrollo (`node:20-alpine`).
   - `/shared/types/interfaces.ts`: Punto único de verdad para las definiciones de TypeScript compartidas entre el cliente (React) y la API (Mongoose).
+
+### [Sprint 3] - Migración a Microservicios y NPM Workspaces
+* **Fecha:** Abril 2026
+* **Contexto de código y mejores prácticas:**
+  - Se eliminó el `backend` monolítico dividiéndolo en `services/api-gateway`, `services/auth-service` y `services/library-service`.
+  - Se orquesta todo usando **NPM Workspaces** en la raíz (para que todos compartan una única carpeta `node_modules` instalada a nivel de proyecto entero).
+  - > **TIP OPERACIONAL (NPM Workspaces):** 
+    > A partir de ahora, cuando quieras añadir una librería a un microservicio específico en lugar de hacer `npm install express` dentro de una carpeta, utiliza el comando raíz:
+    > `npm install express --workspace=auth-service` (o `api-gateway`, o `joylog-frontend`).
+    > De esta forma el entorno lo mantendrá en la raíz y lo enlazará automáticamente al servicio.

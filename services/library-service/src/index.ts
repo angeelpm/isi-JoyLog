@@ -12,7 +12,7 @@ app.use(express.json());
 // Main entry
 const start = async () => {
     await connectDB();
-    
+
     app.get('/api/library/health', (req, res) => {
         res.json({ status: 'Library service is running' });
     });
