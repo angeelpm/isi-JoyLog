@@ -56,36 +56,36 @@
 ## Organización de los directorios
 
 
-joylog/
-├── docker-compose.yml         # Orquestador para levantar Backend, Frontend y MongoDB en local
-├── docs/
-│   └── skills.md              # Documento de planificación actualizado
-├── shared/
-│   └── types/
-│       └── interfaces.ts      # Tipos compartidos
-├── backend/
-│   ├── Dockerfile             # Receta para construir la imagen de Node.js
-│   ├── .dockerignore          # Para evitar copiar node_modules e ignorar archivos pesados
-│   ├── src/
-│   │   ├── models/            # Esquemas de Mongoose
-│   │   ├── controllers/
-│   │   ├── services/          # Wrappers para APIs
-│   │   ├── routes/
-│   │   └── middleware/
-│   ├── tests/
-│   ├── package.json
-│   └── .env
-├── frontend/
-│   ├── Dockerfile             # Receta para construir la imagen del Frontend
-│   ├── .dockerignore
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   └── hooks/
-│   ├── tests/
-│   └── package.json
-└── README.md
+    joylog/
+    ├── docker-compose.yml         # Orquestador para levantar Backend, Frontend y MongoDB en local
+    ├── docs/
+    │   └── skills.md              # Documento de planificación actualizado
+    ├── shared/
+    │   └── types/
+    │       └── interfaces.ts      # Tipos compartidos
+    ├── services/
+    │   ├── api-gateway/           # Proxy y Router principal (Puerto 3000)
+    │   ├── auth-service/          # Microservicio de logueo/registro
+    │   │   ├── src/
+    │   │   │   ├── config/db.ts              # Conexión a Mongoose
+    │   │   │   ├── controllers/authController.ts # Lógica login/registro con BCrypt
+    │   │   │   ├── models/User.ts            # Esquema de Usuario
+    │   │   │   ├── routes/authRoutes.ts      # Rutas Express
+    │   │   │   └── index.ts                  # Entrada del servicio
+    │   │   ├── Dockerfile
+    │   │   └── package.json
+    │   └── library-service/       # Microservicio del CRUD de videojuegos
+    ├── frontend/
+    │   ├── Dockerfile             # Receta para construir la imagen del Frontend
+    │   ├── .dockerignore
+    │   ├── src/
+    │   │   ├── components/
+    │   │   ├── pages/
+    │   │   ├── services/
+    │   │   └── hooks/
+    │   ├── tests/
+    │   └── package.json
+    └── README.md
 
 ## 🤖 Registro de Cambios y Contexto para IA (AI Context & Roadmap)
 > **Instrucción obligatoria para IAs futuras:** Revisa siempre esta sección para conocer el estado preciso del proyecto antes de generar código. Cada vez que realices un cambio estructural o agregues una nueva funcionalidad, DEBES agregar una entrada a este historial explicando brevemente los ficheros modificados y su función en el código.
@@ -96,3 +96,19 @@ joylog/
   - `docker-compose.yml`: Orquesta la infraestructura de la app mediante 3 contenedores separados (`mongodb`, `backend`, `frontend`) bajo una misma red (`joylog-net`).
   - `/backend/...` y `/frontend/...`: Se ha definido la jerarquía de carpetas necesaria para un patrón MVC (backend) y basado en componentes (frontend). Ambas cuentan con un `Dockerfile` base de desarrollo (`node:20-alpine`).
   - `/shared/types/interfaces.ts`: Punto único de verdad para las definiciones de TypeScript compartidas entre el cliente (React) y la API (Mongoose).
+
+### [Sprint 3] - Migración Arquitectónica a Microservicios
+* **Fecha:** Abril 2026
+* **Funciones implementadas y contexto de código:**
+  - Se ha abandonado la carpeta monolítica `/backend` en favor del paradigma de microservicios alojados en la carpeta `/services`.
+  - `/services/api-gateway/`: Construido con Node Express y `http-proxy-middleware`, actúa como router y puerta de entrada en el puerto local `:3000`. Recibe tráfico principal y redirige a los otros servicios bajo la red de docker interna.
+  - `/services/auth-service/` y `/services/library-service/`: Microservicios individuales cada uno con su propio `package.json`, conexión a MongoDB y `Dockerfile` bajo `node:20-alpine`, orquestados independientemente.
+  - `docker-compose.yml`: Actualizado para lanzar la nueva arquitectura repartida en cinco servicios (`mongodb`, `api-gateway`, `auth-service`, `library-service`, `frontend`).
+
+### [Sprint 3] - Autenticación JWT y Modelo de Usuarios
+* **Fecha:** Abril 2026
+* **Funciones implementadas y contexto de código:**
+  - **Auth Service (`/services/auth-service/`)**: Implementado en su totalidad el CRUD de autenticación.
+  - El esquema de datos reside en `src/models/User.ts` con tipado fuerte en Mongoose (`IUser`).
+  - Lógica de Hasheo: Utiliza `bcryptjs` en `authController.ts` antes de persistir las contraseñas.
+  - Rutas y Proxy Funcionales: El Gateway redirige el puerto externo `:3000` de forma limpia hacia el puerto `:3001` interno, omitiendo subrutas inyectadas. Entrar en `localhost:3000/api/auth/register` impacta directamente al middleware de login y te devuelve un JWT (provisto por `jsonwebtoken`) válido.
