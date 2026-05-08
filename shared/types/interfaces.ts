@@ -1,6 +1,9 @@
 export interface GameEntry {
-  id: string;
+  userId: string;
+  gameId: string; // ID from RAWG API
   title: string;
-  status: 'playing' | 'completed' | 'backlog';
-  // Add more as needed
+  platform?: string;
+  status: 'playing' | 'completed' | 'backlog' | 'dropped';
+  rating?: number;
+  hoursPlayed?: number;
 }
