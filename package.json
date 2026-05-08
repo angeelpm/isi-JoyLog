@@ -1,8 +1,0 @@
-{
-  "name": "joylog-workspace",
-  "private": true,
-  "workspaces": [
-    "services/*",
-    "frontend"
-  ]
-}
