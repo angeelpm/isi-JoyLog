@@ -1,0 +1,10 @@
+{
+  "name": "joylog-frontend",
+  "version": "1.0.0",
+  "description": "JoyLog Frontend",
+  "scripts": {
+    "dev": "echo 'Frontend server starting...' && tail -f /dev/null"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
