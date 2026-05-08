@@ -1,0 +1,114 @@
+:root {
+  --bg-dark: #0d1117;
+  --bg-card: #161b22;
+  --bg-card-hover: #21262d;
+  --text-main: #e6edf3;
+  --text-muted: #8b949e;
+  --accent-green: #238636;
+  --accent-green-hover: #2ea043;
+  --accent-blue: #2f81f7;
+  --accent-red: #da3633;
+  --accent-orange: #d29922;
+  --border-color: #30363d;
+  
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: dark;
+  color: var(--text-main);
+  background-color: var(--bg-dark);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+a {
+  color: var(--accent-blue);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  font-family: inherit;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+.btn-primary {
+  background-color: var(--accent-green);
+  color: white;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background-color: var(--accent-green-hover);
+}
+
+.btn-secondary {
+  background-color: var(--bg-card-hover);
+  color: var(--text-main);
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+  background-color: #30363d;
+}
+
+input, select, textarea {
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-family: inherit;
+  outline: none;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 1px var(--accent-blue);
+}
+
+/* Glass card styling */
+.glass-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* Status colors */
+.status-playing { color: var(--accent-green); }
+.status-completed { color: var(--accent-blue); }
+.status-backlog { color: var(--text-muted); }
+.status-dropped { color: var(--accent-red); }
+.status-wishlist { color: var(--accent-orange); }
+
+/* Main layout grid */
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
