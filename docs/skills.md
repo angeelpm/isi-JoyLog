@@ -56,36 +56,22 @@
 ## Organización de los directorios
 
 
-    joylog/
-    ├── docker-compose.yml         # Orquestador para levantar Backend, Frontend y MongoDB en local
-    ├── docs/
-    │   └── skills.md              # Documento de planificación actualizado
-    ├── shared/
-    │   └── types/
-    │       └── interfaces.ts      # Tipos compartidos
-    ├── services/
-    │   ├── api-gateway/           # Proxy y Router principal (Puerto 3000)
-    │   ├── auth-service/          # Microservicio de logueo/registro
-    │   │   ├── src/
-    │   │   │   ├── config/db.ts              # Conexión a Mongoose
-    │   │   │   ├── controllers/authController.ts # Lógica login/registro con BCrypt
-    │   │   │   ├── models/User.ts            # Esquema de Usuario
-    │   │   │   ├── routes/authRoutes.ts      # Rutas Express
-    │   │   │   └── index.ts                  # Entrada del servicio
-    │   │   ├── Dockerfile
-    │   │   └── package.json
-    │   └── library-service/       # Microservicio del CRUD de videojuegos
-    ├── frontend/
-    │   ├── Dockerfile             # Receta para construir la imagen del Frontend
-    │   ├── .dockerignore
-    │   ├── src/
-    │   │   ├── components/
-    │   │   ├── pages/
-    │   │   ├── services/
-    │   │   └── hooks/
-    │   ├── tests/
-    │   └── package.json
-    └── README.md
+joylog/
+├── docker-compose.yml         # Orquestador para levantar Backend, Frontend y MongoDB en local
+├── package.json               # Configuración de NPM Workspaces
+├── docs/
+│   └── skills.md              # Documento de planificación actualizado
+├── shared/
+│   └── types/
+│       └── interfaces.ts      # Tipos compartidos
+├── services/
+│   ├── api-gateway/           # Puerta de enlace (API Gateway)
+│   ├── auth-service/          # Microservicio de Autenticación
+│   └── library-service/       # Microservicio de Biblioteca
+├── frontend/
+│   ├── Dockerfile             # Receta para construir la imagen del Frontend
+│   └── package.json           # Paquete en el entorno Workspaces
+└── README.md
 
 ## 🤖 Registro de Cambios y Contexto para IA (AI Context & Roadmap)
 > **Instrucción obligatoria para IAs futuras:** Revisa siempre esta sección para conocer el estado preciso del proyecto antes de generar código. Cada vez que realices un cambio estructural o agregues una nueva funcionalidad, DEBES agregar una entrada a este historial explicando brevemente los ficheros modificados y su función en el código.
@@ -97,18 +83,20 @@
   - `/backend/...` y `/frontend/...`: Se ha definido la jerarquía de carpetas necesaria para un patrón MVC (backend) y basado en componentes (frontend). Ambas cuentan con un `Dockerfile` base de desarrollo (`node:20-alpine`).
   - `/shared/types/interfaces.ts`: Punto único de verdad para las definiciones de TypeScript compartidas entre el cliente (React) y la API (Mongoose).
 
-### [Sprint 3] - Migración Arquitectónica a Microservicios
+### [Sprint 3] - Migración a Microservicios y NPM Workspaces
 * **Fecha:** Abril 2026
-* **Funciones implementadas y contexto de código:**
-  - Se ha abandonado la carpeta monolítica `/backend` en favor del paradigma de microservicios alojados en la carpeta `/services`.
-  - `/services/api-gateway/`: Construido con Node Express y `http-proxy-middleware`, actúa como router y puerta de entrada en el puerto local `:3000`. Recibe tráfico principal y redirige a los otros servicios bajo la red de docker interna.
-  - `/services/auth-service/` y `/services/library-service/`: Microservicios individuales cada uno con su propio `package.json`, conexión a MongoDB y `Dockerfile` bajo `node:20-alpine`, orquestados independientemente.
-  - `docker-compose.yml`: Actualizado para lanzar la nueva arquitectura repartida en cinco servicios (`mongodb`, `api-gateway`, `auth-service`, `library-service`, `frontend`).
+* **Contexto de código y mejores prácticas:**
+  - Se eliminó el `backend` monolítico dividiéndolo en `services/api-gateway`, `services/auth-service` y `services/library-service`.
+  - Se orquesta todo usando **NPM Workspaces** en la raíz (para que todos compartan una única carpeta `node_modules` instalada a nivel de proyecto entero).
+  - > **TIP OPERACIONAL (NPM Workspaces):** 
+    > A partir de ahora, cuando quieras añadir una librería a un microservicio específico en lugar de hacer `npm install express` dentro de una carpeta, utiliza el comando raíz:
+    > `npm install express --workspace=auth-service` (o `api-gateway`, o `joylog-frontend`).
+    > De esta forma el entorno lo mantendrá en la raíz y lo enlazará automáticamente al servicio.
 
-### [Sprint 3] - Autenticación JWT y Modelo de Usuarios
+### [Sprint 3] - Logica de Biblioteca Completa (CRUD)
 * **Fecha:** Abril 2026
-* **Funciones implementadas y contexto de código:**
-  - **Auth Service (`/services/auth-service/`)**: Implementado en su totalidad el CRUD de autenticación.
-  - El esquema de datos reside en `src/models/User.ts` con tipado fuerte en Mongoose (`IUser`).
-  - Lógica de Hasheo: Utiliza `bcryptjs` en `authController.ts` antes de persistir las contraseñas.
-  - Rutas y Proxy Funcionales: El Gateway redirige el puerto externo `:3000` de forma limpia hacia el puerto `:3001` interno, omitiendo subrutas inyectadas. Entrar en `localhost:3000/api/auth/register` impacta directamente al middleware de login y te devuelve un JWT (provisto por `jsonwebtoken`) válido.
+* **Contexto de código:**
+  - **Library Service (`/services/library-service/`)**: Instanciado el CRUD para `GameEntry`.
+  - **Middleware JWT:** `authMiddleware.ts` intercepta peticiones a `/api/library` con un token JWT Bearer, extrae el ID de usuario e inyecta la identidad en los request.
+  - **Mongoose Mapeo Compuesto:** Se actualizó `interfaces.ts` con mejores propiedades. El schema `GameEntry` garantiza la no-duplicidad con una restrucción de índice en `{ userId: 1, gameId: 1 }`.
+  - Refactorizado un archivo independiente `app.ts` (en library-service) enfocado en tests para imitar en este backend el ecosistema de Jest implementado en auth.
