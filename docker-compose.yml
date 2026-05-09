@@ -20,6 +20,7 @@ services:
       - "3000:3000"
     environment:
       - PORT=3000
+      - RAWG_API_KEY=${RAWG_API_KEY}
     volumes:
       - .:/usr/src/app
     depends_on:
@@ -57,6 +58,7 @@ services:
     environment:
       - PORT=3002
       - MONGODB_URI=mongodb://mongodb:27017/joylog
+      - JWT_SECRET=supersecret123
     volumes:
       - .:/usr/src/app
     depends_on:
@@ -71,7 +73,7 @@ services:
       dockerfile: Dockerfile
     container_name: joylog_frontend
     ports:
-      - "5173:5173" 
+      - "5173:5173"
     environment:
       - VITE_API_URL=http://localhost:3000
     volumes:

@@ -1,15 +1,22 @@
 import { Router } from 'express';
-import { addGame, getUserLibrary, updateGameStatus, removeGame } from '../controllers/libraryController';
-import { verifyToken } from '../middleware/authMiddleware';
+import { authMiddleware } from '../middleware/authMiddleware';
+import {
+    getLibrary,
+    addGame,
+    updateGame,
+    deleteGame,
+    getStats
+} from '../controllers/libraryController';
 
 const router = Router();
 
-// Todas estas rutas requieren un token válido
-router.use(verifyToken);
+// All routes require authentication
+router.use(authMiddleware);
 
-router.get('/', getUserLibrary);
+router.get('/', getLibrary);
 router.post('/', addGame);
-router.patch('/:id', updateGameStatus);
-router.delete('/:id', removeGame);
+router.get('/stats', getStats);
+router.put('/:id', updateGame);
+router.delete('/:id', deleteGame);
 
 export default router;

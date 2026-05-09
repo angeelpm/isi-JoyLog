@@ -1,81 +1,143 @@
 import { Response } from 'express';
-import { GameEntryModel } from '../models/GameEntry';
-import { AuthenticatedRequest } from '../middleware/authMiddleware';
+import { GameEntry } from '../models/GameEntry';
+import { AuthRequest } from '../middleware/authMiddleware';
 
-export const addGame = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+// GET / - Get user's library (optional status filter)
+export const getLibrary = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const userId = req.user?.id;
-        const { gameId, title, platform, status, rating, hoursPlayed } = req.body;
-
-        const newGame = new GameEntryModel({
-            userId,
-            gameId,
-            title,
-            platform,
-            status,
-            rating,
-            hoursPlayed
-        });
-
-        await newGame.save();
-        res.status(201).json({ message: 'Game added to library', game: newGame });
-    } catch (error: any) {
-        console.error(error);
-        if (error.code === 11000) {
-            res.status(400).json({ message: 'Game already exists in your library' });
-            return;
+        const { status, sort } = req.query;
+        const filter: any = { userId: req.userId };
+        if (status && status !== 'all') {
+            filter.status = status;
         }
-        res.status(500).json({ message: 'Error adding game to library' });
-    }
-};
 
-export const getUserLibrary = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
-        const userId = req.user?.id;
-        const library = await GameEntryModel.find({ userId });
-        res.json(library);
+        let sortOption: any = { updatedAt: -1 };
+        if (sort === 'title') sortOption = { title: 1 };
+        if (sort === 'rating') sortOption = { rating: -1 };
+        if (sort === 'recent') sortOption = { createdAt: -1 };
+
+        const entries = await GameEntry.find(filter).sort(sortOption);
+        res.json({ entries, total: entries.length });
     } catch (error) {
+        console.error(error);
         res.status(500).json({ message: 'Error fetching library' });
     }
 };
 
-export const updateGameStatus = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+// POST / - Add game to library
+export const addGame = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const userId = req.user?.id;
-        const { id } = req.params; // Mongo ObjectID
-        const updateData = req.body;
+        const { rawgGameId, title, coverImage, status, rating, review, hoursPlayed, platforms, genres } = req.body;
 
-        const game = await GameEntryModel.findOneAndUpdate(
-            { _id: id, userId },
-            { $set: updateData },
-            { new: true }
-        );
-
-        if (!game) {
-            res.status(404).json({ message: 'Game not found in your library' });
+        // Check if game already in library
+        const existing = await GameEntry.findOne({ userId: req.userId, rawgGameId });
+        if (existing) {
+            res.status(400).json({ message: 'Game already in your library' });
             return;
         }
 
-        res.json({ message: 'Game updated', game });
+        const entry = new GameEntry({
+            userId: req.userId,
+            rawgGameId,
+            title,
+            coverImage,
+            status: status || 'backlog',
+            rating,
+            review,
+            hoursPlayed,
+            platforms,
+            genres,
+            startedAt: status === 'playing' ? new Date() : undefined
+        });
+
+        await entry.save();
+        res.status(201).json({ message: 'Game added to library', entry });
     } catch (error) {
-        res.status(500).json({ message: 'Error updating game entry' });
+        console.error(error);
+        res.status(500).json({ message: 'Error adding game' });
     }
 };
 
-export const removeGame = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+// PUT /:id - Update game entry
+export const updateGame = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const userId = req.user?.id;
         const { id } = req.params;
+        const updateData = req.body;
 
-        const deletedGame = await GameEntryModel.findOneAndDelete({ _id: id, userId });
-        
-        if (!deletedGame) {
-            res.status(404).json({ message: 'Game not found' });
+        // Auto-set date fields based on status changes
+        if (updateData.status === 'completed' && !updateData.completedAt) {
+            updateData.completedAt = new Date();
+        }
+        if (updateData.status === 'playing' && !updateData.startedAt) {
+            updateData.startedAt = new Date();
+        }
+
+        const entry = await GameEntry.findOneAndUpdate(
+            { _id: id, userId: req.userId },
+            updateData,
+            { new: true }
+        );
+
+        if (!entry) {
+            res.status(404).json({ message: 'Game entry not found' });
             return;
         }
 
-        res.json({ message: 'Game removed successfully' });
+        res.json({ message: 'Game updated', entry });
     } catch (error) {
-        res.status(500).json({ message: 'Error removing game' });
+        console.error(error);
+        res.status(500).json({ message: 'Error updating game' });
+    }
+};
+
+// DELETE /:id - Remove game from library
+export const deleteGame = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const entry = await GameEntry.findOneAndDelete({ _id: id, userId: req.userId });
+
+        if (!entry) {
+            res.status(404).json({ message: 'Game entry not found' });
+            return;
+        }
+
+        res.json({ message: 'Game removed from library' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error deleting game' });
+    }
+};
+
+// GET /stats - Get user stats
+export const getStats = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.userId;
+
+        const [stats] = await GameEntry.aggregate([
+            { $match: { userId } },
+            {
+                $group: {
+                    _id: null,
+                    total: { $sum: 1 },
+                    playing: { $sum: { $cond: [{ $eq: ['$status', 'playing'] }, 1, 0] } },
+                    completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+                    backlog: { $sum: { $cond: [{ $eq: ['$status', 'backlog'] }, 1, 0] } },
+                    dropped: { $sum: { $cond: [{ $eq: ['$status', 'dropped'] }, 1, 0] } },
+                    wishlist: { $sum: { $cond: [{ $eq: ['$status', 'wishlist'] }, 1, 0] } },
+                    totalHoursPlayed: { $sum: { $ifNull: ['$hoursPlayed', 0] } },
+                    avgRating: { $avg: '$rating' }
+                }
+            }
+        ]);
+
+        res.json({
+            stats: stats || {
+                total: 0, playing: 0, completed: 0, backlog: 0,
+                dropped: 0, wishlist: 0, totalHoursPlayed: 0, avgRating: 0
+            }
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching stats' });
     }
 };

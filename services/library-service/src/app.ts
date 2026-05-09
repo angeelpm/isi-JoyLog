@@ -8,7 +8,11 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Modulos
+// Routes
 app.use('/', libraryRoutes);
+
+app.get('/api/library/health', (req, res) => {
+    res.json({ status: 'Library service is running' });
+});
 
 export default app;
