@@ -1,0 +1,99 @@
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: joylog_mongo
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - joylog-net
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: joylog_api_gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - RAWG_API_KEY=${RAWG_API_KEY}
+    volumes:
+      - .:/usr/src/app
+      - api_gateway_nm:/usr/src/app/node_modules
+    depends_on:
+      - mongodb
+    networks:
+      - joylog-net
+    command: npm run dev --workspace=api-gateway
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    container_name: joylog_auth_service
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - MONGODB_URI=mongodb://mongodb:27017/joylog
+      - JWT_SECRET=supersecret123
+    volumes:
+      - .:/usr/src/app
+      - auth_service_nm:/usr/src/app/node_modules
+    depends_on:
+      - mongodb
+    networks:
+      - joylog-net
+    command: npm run dev --workspace=auth-service
+
+  library-service:
+    build:
+      context: .
+      dockerfile: services/library-service/Dockerfile
+    container_name: joylog_library_service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - MONGODB_URI=mongodb://mongodb:27017/joylog
+      - JWT_SECRET=supersecret123
+      - ITAD_API_KEY=${ITAD_API_KEY}
+    volumes:
+      - .:/usr/src/app
+      - library_service_nm:/usr/src/app/node_modules
+    depends_on:
+      - mongodb
+    networks:
+      - joylog-net
+    command: npm run dev --workspace=library-service
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: joylog_frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3000
+    volumes:
+      - .:/usr/src/app
+      - frontend_nm:/usr/src/app/node_modules
+    depends_on:
+      - api-gateway
+    networks:
+      - joylog-net
+    command: npm run dev --workspace=joylog-frontend
+
+volumes:
+  mongodb_data:
+  api_gateway_nm:
+  auth_service_nm:
+  library_service_nm:
+  frontend_nm:
+
+networks:
+  joylog-net:
+    driver: bridge
