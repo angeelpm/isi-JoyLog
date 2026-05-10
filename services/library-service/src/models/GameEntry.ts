@@ -1,6 +1,13 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
-export type GameStatus = 'playing' | 'completed' | 'backlog' | 'dropped' | 'wishlist';
+export type GameStatus = 'playing' | 'completed' | 'dropped' | 'wishlist';
+
+export interface IReviewLog {
+    text: string;
+    rating?: number;
+    hoursPlayed?: number;
+    createdAt?: Date;
+}
 
 export interface IGameEntry extends Document {
     userId: string;
@@ -10,6 +17,7 @@ export interface IGameEntry extends Document {
     status: GameStatus;
     rating?: number;
     review?: string;
+    reviewLogs?: IReviewLog[];
     hoursPlayed?: number;
     platforms?: string[];
     genres?: string[];
@@ -24,12 +32,18 @@ const GameEntrySchema: Schema = new Schema({
     coverImage: { type: String, default: '' },
     status: {
         type: String,
-        enum: ['playing', 'completed', 'backlog', 'dropped', 'wishlist'],
-        default: 'backlog',
+        enum: ['playing', 'completed', 'dropped', 'wishlist'],
+        default: 'wishlist',
         required: true
     },
     rating: { type: Number, min: 1, max: 10 },
     review: { type: String, default: '' },
+    reviewLogs: [{
+        text: String,
+        rating: Number,
+        hoursPlayed: Number,
+        createdAt: { type: Date, default: Date.now }
+    }],
     hoursPlayed: { type: Number, default: 0, min: 0 },
     platforms: [{ type: String }],
     genres: [{ type: String }],
