@@ -97,8 +97,9 @@ export const LoginPage = () => {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
             <div className="form-group">
-              <label className="form-label">Username or Email</label>
+              <label htmlFor="usernameOrEmail" className="form-label">Username or Email</label>
               <input
+                id="usernameOrEmail"
                 type="text"
                 value={usernameOrEmail}
                 onChange={(e) => setUsernameOrEmail(e.target.value)}
@@ -107,8 +108,9 @@ export const LoginPage = () => {
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Password</label>
+              <label htmlFor="password" className="form-label">Password</label>
               <input
+                id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
