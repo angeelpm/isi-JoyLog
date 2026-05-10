@@ -30,8 +30,12 @@ describe('LoginPage Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (useAuth as any).mockReturnValue({
-      login: mockLogin
+    vi.mocked(useAuth).mockReturnValue({
+      login: mockLogin,
+      user: null,
+      loading: false,
+      token: null,
+      logout: vi.fn(),
     });
   });
 
@@ -48,7 +52,7 @@ describe('LoginPage Component', () => {
   });
 
   it('submits the form and calls login on success', async () => {
-    (api.post as any).mockResolvedValue({
+    vi.mocked(api.post).mockResolvedValue({
       data: { token: 'fake-token', user: { id: '1', username: 'testuser' } }
     });
 
@@ -73,7 +77,7 @@ describe('LoginPage Component', () => {
   });
 
   it('shows error message on failure', async () => {
-    (api.post as any).mockRejectedValue({
+    vi.mocked(api.post).mockRejectedValue({
       isAxiosError: true,
       response: { data: { message: 'Invalid credentials' } }
     });

@@ -17,8 +17,11 @@ describe('Navbar Component', () => {
   });
 
   it('renders login and signup links when user is not authenticated', () => {
-    (useAuth as any).mockReturnValue({
+    vi.mocked(useAuth).mockReturnValue({
       user: null,
+      token: null,
+      loading: false,
+      login: vi.fn(),
       logout: mockLogout
     });
 
@@ -33,8 +36,11 @@ describe('Navbar Component', () => {
   });
 
   it('renders nav links and user menu when user is authenticated', () => {
-    (useAuth as any).mockReturnValue({
+    vi.mocked(useAuth).mockReturnValue({
       user: { id: '1', username: 'testuser', email: 'test@example.com' },
+      token: 'fake-token',
+      loading: false,
+      login: vi.fn(),
       logout: mockLogout
     });
 
@@ -51,8 +57,11 @@ describe('Navbar Component', () => {
   });
 
   it('calls logout and navigates when logout button is clicked', () => {
-    (useAuth as any).mockReturnValue({
+    vi.mocked(useAuth).mockReturnValue({
       user: { id: '1', username: 'testuser', email: 'test@example.com' },
+      token: 'fake-token',
+      loading: false,
+      login: vi.fn(),
       logout: mockLogout
     });
 
