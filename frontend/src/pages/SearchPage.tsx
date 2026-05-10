@@ -20,6 +20,8 @@ const COMMON_GENRES = [
 export const SearchPage = () => {
   const [query, setQuery] = useState('');
   const [genre, setGenre] = useState('');
+  const [submittedQuery, setSubmittedQuery] = useState('');
+  const [submittedGenre, setSubmittedGenre] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -51,6 +53,8 @@ export const SearchPage = () => {
       const response = await RawgAPI.searchGames(query, genre, 1);
       setResults(response.data.results);
       setHasMore(!!response.data.next);
+      setSubmittedQuery(query);
+      setSubmittedGenre(genre);
     } catch (err) {
       console.error(err);
       setError('Error searching for games. Please try again later.');
@@ -172,7 +176,7 @@ export const SearchPage = () => {
           <span style={{ fontFamily: "'DM Mono', monospace", color: 'var(--text-primary)', fontWeight: 500 }}>
             {results.length}
           </span>{' '}
-          results {query ? `for "${query}"` : ''} {genre ? `in ${COMMON_GENRES.find(g => g.slug === genre)?.name}` : ''}
+          results {submittedQuery ? `for "${submittedQuery}"` : ''} {submittedGenre ? `in ${COMMON_GENRES.find(g => g.slug === submittedGenre)?.name}` : ''}
         </p>
       )}
 

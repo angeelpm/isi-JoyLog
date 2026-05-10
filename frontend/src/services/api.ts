@@ -31,6 +31,7 @@ export const LibraryAPI = {
   updateGame: (id: string, data: any) => api.put(`/api/library/${id}`, data),
   deleteGame: (id: string) => api.delete(`/api/library/${id}`),
   getStats: () => api.get('/api/library/stats'),
+  getGameReviews: (rawgGameId: number | string) => api.get(`/api/library/reviews/${rawgGameId}`),
 };
 
 export const RawgAPI = {

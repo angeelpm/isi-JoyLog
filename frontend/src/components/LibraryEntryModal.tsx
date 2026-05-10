@@ -30,6 +30,7 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
   const [deleting, setDeleting]         = useState(false);
   const [gameDetails, setGameDetails]   = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
+  const [communityReviews, setCommunityReviews] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -42,8 +43,20 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
         setLoadingDetails(false);
       }
     };
-    if (game.rawgGameId) fetchDetails();
-    else setLoadingDetails(false);
+    const fetchReviews = async () => {
+      try {
+        const { data } = await LibraryAPI.getGameReviews(game.rawgGameId);
+        setCommunityReviews(data.reviews || []);
+      } catch (err) {
+        console.error('Failed to fetch community reviews', err);
+      }
+    };
+    if (game.rawgGameId) {
+      fetchDetails();
+      fetchReviews();
+    } else {
+      setLoadingDetails(false);
+    }
   }, [game.rawgGameId]);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -399,6 +412,61 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
                   </div>
                 )}
               </div>
+              {/* Community Reviews Section */}
+              {communityReviews.length > 0 && (
+                <div style={{ marginTop: '2rem' }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '0.75rem',
+                    marginBottom: '1rem',
+                    paddingBottom: '0.75rem',
+                    borderBottom: '1px solid var(--border)',
+                  }}>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Community Reviews</h3>
+                    <span style={{
+                      background: 'var(--bg-surface-2)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '100px',
+                      padding: '0.1rem 0.55rem',
+                      fontSize: '0.75rem',
+                      color: 'var(--text-muted)',
+                      fontFamily: "'DM Mono', monospace",
+                    }}>
+                      {communityReviews.length}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                    {communityReviews.map((log: any, idx: number) => (
+                      <div key={'comm-'+idx} style={{
+                        padding: '1rem 1.1rem',
+                        background: 'var(--bg-surface-2)',
+                        borderRadius: '10px',
+                        border: '1px solid var(--border)',
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.4rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem' }}>
+                            <span style={{ fontWeight: 700, color: 'var(--accent-violet)' }}>{log.username}</span>
+                            <span style={{ color: 'var(--text-muted)' }}>·</span>
+                            <span style={{ color: 'var(--text-muted)' }}>
+                              {log.createdAt ? new Date(log.createdAt).toLocaleDateString() : 'Unknown date'}
+                            </span>
+                            {log.hoursPlayed > 0 && (
+                              <>
+                                <span style={{ color: 'var(--text-muted)' }}>·</span>
+                                <span style={{ color: 'var(--text-muted)', fontFamily: "'DM Mono', monospace" }}>
+                                  {log.hoursPlayed}h
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          {log.rating > 0 && <div style={{ display: 'flex', gap: '2px' }}>{renderStaticStars(log.rating)}</div>}
+                        </div>
+                        <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.6 }}>{log.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* New review entry */}
               <div>
