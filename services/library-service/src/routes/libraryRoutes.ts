@@ -7,10 +7,14 @@ import {
     deleteGame,
     getStats
 } from '../controllers/libraryController';
+import { getGamePrices } from '../controllers/priceController';
 
 const router = Router();
 
-// All routes require authentication
+// Public routes (no auth required)
+router.get('/prices', getGamePrices);
+
+// All routes below require authentication
 router.use(authMiddleware);
 
 router.get('/', getLibrary);
