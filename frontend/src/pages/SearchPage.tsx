@@ -1,23 +1,56 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search } from 'lucide-react';
 import { RawgAPI } from '../services/api';
 import { LibraryEntryModal } from '../components/LibraryEntryModal';
+import { PriceWidget } from '../components/PriceWidget';
+
+const COMMON_GENRES = [
+  { slug: '', name: 'All Genres' },
+  { slug: 'action', name: 'Action' },
+  { slug: 'shooter', name: 'Shooter' },
+  { slug: 'adventure', name: 'Adventure' },
+  { slug: 'role-playing-games-rpg', name: 'RPG' },
+  { slug: 'strategy', name: 'Strategy' },
+  { slug: 'sports', name: 'Sports' },
+  { slug: 'racing', name: 'Racing' },
+  { slug: 'puzzle', name: 'Puzzle' },
+  { slug: 'fighting', name: 'Fighting' },
+];
 
 export const SearchPage = () => {
   const [query, setQuery] = useState('');
+  const [genre, setGenre] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [selectedGame, setSelectedGame] = useState<any>(null);
 
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastElementRef = useCallback((node: HTMLDivElement) => {
+    if (loading || loadingMore) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setPage(prevPage => prevPage + 1);
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [loading, loadingMore, hasMore]);
+
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim()) return;
+    if (!query.trim() && !genre) return;
     setLoading(true);
     setError('');
+    setPage(1);
     try {
-      const response = await RawgAPI.searchGames(query);
+      const response = await RawgAPI.searchGames(query, genre, 1);
       setResults(response.data.results);
+      setHasMore(!!response.data.next);
     } catch (err) {
       console.error(err);
       setError('Error searching for games. Please try again later.');
@@ -25,6 +58,25 @@ export const SearchPage = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (page === 1) return;
+
+    const loadMore = async () => {
+      setLoadingMore(true);
+      try {
+        const response = await RawgAPI.searchGames(query, genre, page);
+        setResults(prev => [...prev, ...response.data.results]);
+        setHasMore(!!response.data.next);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoadingMore(false);
+      }
+    };
+    
+    loadMore();
+  }, [page]); // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const handleGameSelect = (game: any) => {
     setSelectedGame({
@@ -58,7 +110,7 @@ export const SearchPage = () => {
         {/* Search bar */}
         <form onSubmit={handleSearch} style={{
           display: 'flex', gap: '0',
-          maxWidth: '600px', margin: '0 auto',
+          maxWidth: '800px', margin: '0 auto',
           background: 'var(--bg-surface)',
           border: '1px solid var(--border-strong)',
           borderRadius: '14px',
@@ -75,13 +127,31 @@ export const SearchPage = () => {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by title, genre, studio..."
+            placeholder="Search by title, studio..."
             style={{
               flex: 1, border: 'none', borderRadius: 0,
               padding: '0.9rem 0', fontSize: '1rem',
               background: 'transparent',
+              minWidth: '150px'
             }}
           />
+          <div style={{ width: '1px', background: 'var(--border-strong)', margin: '0.5rem 0' }}></div>
+          <select
+            value={genre}
+            onChange={(e) => setGenre(e.target.value)}
+            style={{
+              border: 'none', background: 'transparent',
+              padding: '0 1rem', fontSize: '0.95rem',
+              color: 'var(--text-primary)', outline: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            {COMMON_GENRES.map(g => (
+              <option key={g.slug} value={g.slug} style={{ background: 'var(--bg-surface)', color: 'var(--text-primary)' }}>
+                {g.name}
+              </option>
+            ))}
+          </select>
           <button
             type="submit"
             className="btn-primary"
@@ -102,7 +172,7 @@ export const SearchPage = () => {
           <span style={{ fontFamily: "'DM Mono', monospace", color: 'var(--text-primary)', fontWeight: 500 }}>
             {results.length}
           </span>{' '}
-          results for &ldquo;{query}&rdquo;
+          results {query ? `for "${query}"` : ''} {genre ? `in ${COMMON_GENRES.find(g => g.slug === genre)?.name}` : ''}
         </p>
       )}
 
@@ -112,14 +182,24 @@ export const SearchPage = () => {
         gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
         gap: '1rem'
       }}>
-        {results.map(game => (
-          <SearchResultCard
-            key={game.id}
-            game={game}
-            onSelect={() => handleGameSelect(game)}
-          />
-        ))}
+        {results.map((game, index) => {
+          if (results.length === index + 1) {
+            return (
+              <div ref={lastElementRef} key={`${game.id}-${index}`}>
+                <SearchResultCard game={game} onSelect={() => handleGameSelect(game)} />
+              </div>
+            );
+          } else {
+            return <SearchResultCard key={`${game.id}-${index}`} game={game} onSelect={() => handleGameSelect(game)} />;
+          }
+        })}
       </div>
+
+      {loadingMore && (
+        <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--text-muted)' }}>
+          Loading more games...
+        </div>
+      )}
 
       {selectedGame && (
         <LibraryEntryModal
@@ -207,6 +287,14 @@ const SearchResultCard = ({ game, onSelect }: { game: any; onSelect: () => void 
             {game.released.substring(0, 4)}
           </span>
         )}
+      </div>
+
+      {/* Price widget — direct child at zIndex 3, above the hover overlay (zIndex 2) */}
+      <div
+        style={{ position: 'absolute', bottom: '0.75rem', right: '0.75rem', zIndex: 3 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <PriceWidget title={game.name} compact />
       </div>
     </div>
   );

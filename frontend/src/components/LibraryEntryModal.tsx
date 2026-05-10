@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { LibraryAPI, RawgAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { PriceWidget } from './PriceWidget';
 
 interface LibraryEntryModalProps {
   game: any;
@@ -281,6 +282,8 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
                 {deleting ? 'Removing…' : (game._id ? 'Remove from library' : 'Cancel')}
               </button>
             </form>
+
+            <PriceWidget title={game.title} autoFetch />
           </div>
 
           {/* ── RIGHT: info + logs ──────────────────────── */}

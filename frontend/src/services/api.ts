@@ -34,6 +34,17 @@ export const LibraryAPI = {
 };
 
 export const RawgAPI = {
-  searchGames: (query: string) => api.get(`/api/games/games?search=${encodeURIComponent(query)}`),
+  searchGames: (query: string, genre?: string, page: number = 1) => {
+    let url = `/api/games/games?`;
+    const params = [];
+    if (query) params.push(`search=${encodeURIComponent(query)}`);
+    if (genre) params.push(`genres=${encodeURIComponent(genre)}`);
+    params.push(`page=${page}`);
+    return api.get(url + params.join('&'));
+  },
   getGameDetails: (id: string) => api.get(`/api/games/games/${id}`),
+};
+
+export const PriceAPI = {
+  getGamePrice: (title: string) => api.get('/api/library/prices', { params: { title } }),
 };
