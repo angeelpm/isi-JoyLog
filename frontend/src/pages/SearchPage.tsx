@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { RawgAPI, LibraryAPI } from '../services/api';
+import { LibraryEntryModal } from '../components/LibraryEntryModal';
 
 export const SearchPage = () => {
   const [query, setQuery] = useState('');
@@ -7,6 +8,7 @@ export const SearchPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [addingId, setAddingId] = useState<number | null>(null);
+  const [selectedGame, setSelectedGame] = useState<any>(null);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,6 +26,17 @@ export const SearchPage = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGameSelect = (game: any) => {
+    setSelectedGame({
+      rawgGameId: game.id,
+      title: game.name,
+      coverImage: game.background_image,
+      platforms: game.platforms?.map((p: any) => p.platform.name) || [],
+      genres: game.genres?.map((g: any) => g.name) || [],
+      status: 'wishlist' // Default status for new games
+    });
   };
 
   const handleQuickAdd = async (game: any) => {
@@ -67,30 +80,42 @@ export const SearchPage = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1.5rem' }}>
         {results.map(game => (
           <div key={game.id} className="glass-card" style={{ display: 'flex', flexDirection: 'column', padding: '1rem' }}>
-            <div style={{ 
-              width: '100%', 
-              height: '150px', 
-              backgroundImage: `url(${game.background_image || 'https://via.placeholder.com/300x150'})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              borderRadius: '8px',
-              marginBottom: '1rem'
-            }} />
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '0.5rem', flexGrow: 1 }}>{game.name}</h3>
+            <div 
+              style={{ 
+                width: '100%', 
+                height: '150px', 
+                backgroundImage: `url(${game.background_image || 'https://via.placeholder.com/300x150'})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                borderRadius: '8px',
+                marginBottom: '1rem',
+                cursor: 'pointer'
+              }} 
+              onClick={() => handleGameSelect(game)}
+            />
+            <h3 
+              style={{ fontSize: '1.1rem', marginBottom: '0.5rem', flexGrow: 1, cursor: 'pointer' }}
+              onClick={() => handleGameSelect(game)}
+            >
+              {game.name}
+            </h3>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
               <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{game.released?.substring(0, 4)}</span>
-              <button 
-                className="btn-secondary" 
-                onClick={() => handleQuickAdd(game)}
-                disabled={addingId === game.id}
-                style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem' }}
-              >
-                {addingId === game.id ? 'Adding...' : '+ Backlog'}
-              </button>
             </div>
           </div>
         ))}
       </div>
+      
+      {selectedGame && (
+        <LibraryEntryModal 
+          game={selectedGame}
+          onClose={() => setSelectedGame(null)}
+          onUpdated={() => {
+            alert(`${selectedGame.title} saved to your library!`);
+            setSelectedGame(null);
+          }}
+        />
+      )}
     </div>
   );
 };

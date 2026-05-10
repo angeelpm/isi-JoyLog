@@ -38,7 +38,6 @@ export const LibraryPage = () => {
           <option value="all">All Games</option>
           <option value="playing">Playing</option>
           <option value="completed">Completed</option>
-          <option value="backlog">Backlog</option>
           <option value="dropped">Dropped</option>
           <option value="wishlist">Wishlist</option>
         </select>
