@@ -11,6 +11,7 @@ export interface IReviewLog {
 
 export interface IGameEntry extends Document {
     userId: string;
+    username?: string;
     rawgGameId: number;
     title: string;
     coverImage: string;
@@ -27,6 +28,7 @@ export interface IGameEntry extends Document {
 
 const GameEntrySchema: Schema = new Schema({
     userId: { type: String, required: true, index: true },
+    username: { type: String },
     rawgGameId: { type: Number, required: true },
     title: { type: String, required: true },
     coverImage: { type: String, default: '' },

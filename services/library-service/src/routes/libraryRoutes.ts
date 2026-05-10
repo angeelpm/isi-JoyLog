@@ -5,7 +5,8 @@ import {
     addGame,
     updateGame,
     deleteGame,
-    getStats
+    getStats,
+    getGameReviews
 } from '../controllers/libraryController';
 import { getGamePrices } from '../controllers/priceController';
 
@@ -20,6 +21,7 @@ router.use(authMiddleware);
 router.get('/', getLibrary);
 router.post('/', addGame);
 router.get('/stats', getStats);
+router.get('/reviews/:rawgGameId', getGameReviews);
 router.put('/:id', updateGame);
 router.delete('/:id', deleteGame);
 

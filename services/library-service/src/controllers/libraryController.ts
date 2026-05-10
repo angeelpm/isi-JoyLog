@@ -38,6 +38,7 @@ export const addGame = async (req: AuthRequest, res: Response): Promise<void> =>
 
         const entry = new GameEntry({
             userId: req.userId,
+            username: req.username,
             rawgGameId,
             title,
             coverImage,
@@ -106,6 +107,58 @@ export const deleteGame = async (req: AuthRequest, res: Response): Promise<void>
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error deleting game' });
+    }
+};
+
+// GET /reviews/:rawgGameId - Get community reviews for a game
+export const getGameReviews = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { rawgGameId } = req.params;
+        
+        // Find all entries for this game that have either reviewLogs or a legacy review
+        const entries = await GameEntry.find({ 
+            rawgGameId, 
+            $or: [ 
+                { 'reviewLogs.0': { $exists: true } }, 
+                { review: { $ne: '', $exists: true } } 
+            ] 
+        });
+
+        let allReviews: any[] = [];
+        
+        entries.forEach(entry => {
+            const username = entry.username || 'Anonymous';
+            
+            if (entry.reviewLogs && entry.reviewLogs.length > 0) {
+                entry.reviewLogs.forEach(log => {
+                    allReviews.push({
+                        username,
+                        text: log.text,
+                        rating: log.rating,
+                        hoursPlayed: log.hoursPlayed,
+                        createdAt: log.createdAt,
+                        isCurrentUser: req.userId === entry.userId,
+                    });
+                });
+            } else if (entry.review) {
+                allReviews.push({
+                    username,
+                    text: entry.review,
+                    rating: entry.rating,
+                    hoursPlayed: entry.hoursPlayed,
+                    createdAt: (entry as any).updatedAt || (entry as any).createdAt,
+                    isCurrentUser: req.userId === entry.userId,
+                });
+            }
+        });
+
+        // Sort descending by date
+        allReviews.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+        res.json({ reviews: allReviews });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching community reviews' });
     }
 };
 
