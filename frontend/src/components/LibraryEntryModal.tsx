@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
 import { LibraryAPI, RawgAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -8,21 +9,25 @@ interface LibraryEntryModalProps {
   onUpdated: () => void;
 }
 
+const STATUS_OPTIONS = [
+  { value: 'playing',   label: 'Currently Playing', color: 'var(--status-playing)' },
+  { value: 'completed', label: 'Completed',          color: 'var(--status-completed)' },
+  { value: 'backlog',   label: 'Backlog',             color: 'var(--status-backlog)' },
+  { value: 'wishlist',  label: 'Wishlist',            color: 'var(--status-wishlist)' },
+  { value: 'dropped',   label: 'Dropped',             color: 'var(--status-dropped)' },
+];
+
 export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onClose, onUpdated }) => {
   const { user } = useAuth();
-  
-  const [status, setStatus] = useState(game.status || 'wishlist');
-  const [rating, setRating] = useState(game.rating || '');
-  const [hoursPlayed, setHoursPlayed] = useState(game.hoursPlayed || 0);
 
-  // Instead of a single review, we have a list + a new review text area
-  const [reviewLogs, setReviewLogs] = useState<any[]>(game.reviewLogs || []);
+  const [status, setStatus]             = useState(game.status || 'wishlist');
+  const [rating, setRating]             = useState(game.rating || '');
+  const [hoursPlayed, setHoursPlayed]   = useState(game.hoursPlayed || 0);
+  const [reviewLogs]                     = useState<any[]>(game.reviewLogs || []);
   const [newReviewText, setNewReviewText] = useState('');
-
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  
-  const [gameDetails, setGameDetails] = useState<any>(null);
+  const [saving, setSaving]             = useState(false);
+  const [deleting, setDeleting]         = useState(false);
+  const [gameDetails, setGameDetails]   = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
 
   useEffect(() => {
@@ -37,6 +42,7 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
       }
     };
     if (game.rawgGameId) fetchDetails();
+    else setLoadingDetails(false);
   }, [game.rawgGameId]);
 
   const handleSave = async (e: React.FormEvent) => {
@@ -49,17 +55,15 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
           text: newReviewText,
           rating: rating === '' ? undefined : Number(rating),
           hoursPlayed: Number(hoursPlayed),
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
         });
       }
-
       const payload = {
         status,
         rating: rating === '' ? undefined : Number(rating),
         hoursPlayed: Number(hoursPlayed),
-        reviewLogs: updatedLogs
+        reviewLogs: updatedLogs,
       };
-
       if (game._id) {
         await LibraryAPI.updateGame(game._id, payload);
       } else {
@@ -69,10 +73,9 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
           coverImage: game.coverImage,
           platforms: game.platforms || [],
           genres: game.genres || [],
-          ...payload
+          ...payload,
         });
       }
-
       onUpdated();
       onClose();
     } catch (err) {
@@ -84,12 +87,8 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
   };
 
   const handleDelete = async () => {
-    if (!game._id){
-      onClose();
-      return;
-    }
-    const yes = window.confirm('Are you sure you want to remove this game from your library?');
-    if (!yes)return;
+    if (!game._id) { onClose(); return; }
+    if (!window.confirm('Remove this game from your library?')) return;
     setDeleting(true);
     try {
       await LibraryAPI.deleteGame(game._id);
@@ -97,228 +96,344 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
       onClose();
     } catch (err) {
       console.error(err);
-      alert('Failed to drop entry');
+      alert('Failed to remove entry');
     } finally {
       setDeleting(false);
     }
   };
 
-  const renderStars = () => {
-    const stars = [];
-    for (let i = 1; i <= 5; i++) {
-        const ratingVal = Number(rating) || 0;
-        const fill = ratingVal >= i * 2 ? 100 : (ratingVal >= i * 2 - 1 ? 50 : 0);
-        stars.push(
-            <span key={i} style={{ 
-                cursor: 'pointer', 
-                fontSize: '2rem', 
-                color: fill > 0 ? 'var(--accent-orange)' : 'var(--border-color)',
-                position: 'relative',
-                display: 'inline-block'
-            }} onClick={() => setRating(String(i * 2))}>
-                ★
-            </span>
-        );
-    }
-    return <div style={{ display: 'flex', gap: '5px' }}>{stars}</div>;
-  };
+  const renderStars = () => Array.from({ length: 5 }, (_, i) => {
+    const idx = i + 1;
+    const ratingVal = Number(rating) || 0;
+    const filled = ratingVal >= idx * 2;
+    return (
+      <span
+        key={idx}
+        onClick={() => setRating(String(idx * 2))}
+        style={{
+          cursor: 'pointer',
+          fontSize: '1.65rem',
+          color: filled ? 'var(--accent-amber)' : 'rgba(255,255,255,0.12)',
+          transition: 'color 0.15s',
+        }}
+      >
+        ★
+      </span>
+    );
+  });
 
-  const renderStaticStars = (val: number) => {
-    const stars = [];
-    for (let i = 1; i <= 5; i++) {
-        const fill = val >= i * 2 ? 100 : (val >= i * 2 - 1 ? 50 : 0);
-        stars.push(
-            <span key={i} style={{ 
-                fontSize: '1rem', 
-                color: fill > 0 ? 'var(--accent-orange)' : 'var(--border-color)'
-            }}>
-                ★
-            </span>
-        );
-    }
-    return <div style={{ display: 'flex', gap: '2px' }}>{stars}</div>;
-  }
+  const renderStaticStars = (val: number) => Array.from({ length: 5 }, (_, i) => {
+    const idx = i + 1;
+    const filled = val >= idx * 2;
+    return (
+      <span key={idx} style={{ fontSize: '0.9rem', color: filled ? 'var(--accent-amber)' : 'rgba(255,255,255,0.12)' }}>
+        ★
+      </span>
+    );
+  });
+
+  const currentStatusOption = STATUS_OPTIONS.find(s => s.value === status);
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.85)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 1000,
-      backdropFilter: 'blur(10px)',
-      padding: '2rem',
-      overflowY: 'auto'
-    }}>
-      <div className="glass-card" style={{
-        maxWidth: '1000px', width: '100%',
-        backgroundColor: 'var(--bg-dark)',
-        border: '1px solid var(--border-color)',
-        borderRadius: '16px',
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
+        position: 'fixed', inset: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.88)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 1000,
+        backdropFilter: 'blur(12px)',
+        padding: '1.5rem',
+        overflowY: 'auto',
+        animation: 'fadeIn 0.2s ease-out',
+      }}
+    >
+      <div style={{
+        maxWidth: '960px', width: '100%',
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-strong)',
+        borderRadius: '20px',
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+        boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
         overflow: 'hidden',
-        maxHeight: '90vh'
+        maxHeight: '92vh',
+        animation: 'fadeInUp 0.25s ease-out',
       }}>
-        
-        {/* Backdrop Header */}
+
+        {/* Background image bleed */}
         {gameDetails?.background_image && (
           <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, height: '350px',
+            position: 'absolute', top: 0, left: 0, right: 0, height: '320px',
             backgroundImage: `url(${gameDetails.background_image})`,
-            backgroundSize: 'cover', backgroundPosition: 'center',
-            opacity: 0.15, zIndex: 0,
-            maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)',
-            WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%)'
+            backgroundSize: 'cover', backgroundPosition: 'center top',
+            opacity: 0.12, zIndex: 0,
+            maskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)',
+            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 100%)',
           }} />
         )}
 
-        {/* Close Button */}
-        <button onClick={onClose} style={{ 
-            position: 'absolute', top: '15px', right: '20px', 
-            background: 'rgba(0,0,0,0.5)', borderRadius: '50%', width: '40px', height: '40px',
-            border: '1px solid var(--border-color)', color: 'white', fontSize: '1.5rem', 
-            cursor: 'pointer', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' 
-        }}>×</button>
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute', top: '1rem', right: '1rem',
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid var(--border)',
+            borderRadius: '50%',
+            width: '36px', height: '36px',
+            color: 'var(--text-muted)',
+            cursor: 'pointer', zIndex: 10,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'all 0.18s',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,59,92,0.15)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--accent)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.08)'; (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'; }}
+        >
+          <X size={16} />
+        </button>
 
-        <div style={{ display: 'flex', flexDirection: 'row', gap: '2rem', zIndex: 1, padding: '3rem', flexWrap: 'wrap', overflowY: 'auto' }}>
-            
-            {/* LEFT COLUMN: Poster and Form Actions */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: '1 1 250px', maxWidth: '300px' }}>
-                <img 
-                    src={game.coverImage || 'https://via.placeholder.com/250x350?text=No+Cover'} 
-                    alt={game.title} 
-                    style={{ width: '100%', borderRadius: '12px', boxShadow: '0 8px 16px rgba(0,0,0,0.3)', objectFit: 'cover', aspectRatio: '3/4' }}
+        {/* Body */}
+        <div style={{
+          display: 'flex', flexDirection: 'row', gap: '2rem',
+          padding: '2.5rem',
+          flexWrap: 'wrap',
+          overflowY: 'auto',
+          position: 'relative', zIndex: 1,
+        }}>
+
+          {/* ── LEFT: poster + form ─────────────────────── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', flex: '0 0 240px', maxWidth: '240px' }}>
+            <img
+              src={game.coverImage || ''}
+              alt={game.title}
+              style={{
+                width: '100%', borderRadius: '12px',
+                boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
+                objectFit: 'cover', aspectRatio: '3/4',
+              }}
+            />
+
+            <form onSubmit={handleSave} style={{
+              display: 'flex', flexDirection: 'column', gap: '1.25rem',
+              background: 'var(--bg-surface-2)',
+              padding: '1.25rem', borderRadius: '12px',
+              border: '1px solid var(--border)',
+            }}>
+              {/* Status */}
+              <div>
+                <p style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Status</p>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  style={{ width: '100%', color: currentStatusOption?.color || 'var(--text-primary)' }}
+                >
+                  {STATUS_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Rating */}
+              <div>
+                <p style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Rating</p>
+                <div style={{ display: 'flex', gap: '3px', marginBottom: '0.5rem' }}>
+                  {renderStars()}
+                </div>
+                <input
+                  type="number" min="1" max="10" value={rating}
+                  onChange={(e) => setRating(e.target.value)}
+                  placeholder="1 – 10"
+                  style={{ fontSize: '0.9rem' }}
                 />
+              </div>
 
-                <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', backgroundColor: 'var(--bg-card)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                    <div>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, textTransform: 'uppercase' }}>Status</label>
-                        <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '6px' }}>
-                            <option value="playing">Currently Playing</option>
-                            <option value="completed">Completed</option>
-                            <option value="dropped">Dropped</option>
-                            <option value="wishlist">Wishlist</option>
-                        </select>
-                    </div>
+              {/* Hours */}
+              <div>
+                <p style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Hours Played</p>
+                <input
+                  type="number" min="0" value={hoursPlayed}
+                  onChange={(e) => setHoursPlayed(e.target.value)}
+                  style={{ fontSize: '0.9rem' }}
+                />
+              </div>
 
-                    <div>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, textTransform: 'uppercase' }}>Rating (/10)</label>
-                        <input type="number" min="1" max="10" value={rating} onChange={(e) => setRating(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '6px' }} placeholder="e.g. 8" />
-                        <div style={{ marginTop: '0.5rem' }}>{renderStars()}</div>
-                    </div>
+              <button
+                type="submit"
+                className="btn-primary"
+                style={{ width: '100%', padding: '0.8rem', borderRadius: '10px' }}
+                disabled={saving}
+              >
+                {saving ? 'Saving…' : (game._id ? 'Save Changes' : 'Add to Library')}
+              </button>
 
-                    <div>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600, textTransform: 'uppercase' }}>Hours Played</label>
-                        <input type="number" min="0" value={hoursPlayed} onChange={(e) => setHoursPlayed(e.target.value)} style={{ width: '100%', padding: '0.75rem', borderRadius: '6px' }} />
-                    </div>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                style={{
+                  background: 'transparent', color: 'var(--text-muted)',
+                  border: 'none', padding: '0.25rem', fontSize: '0.8rem',
+                  textDecoration: 'underline', cursor: 'pointer',
+                }}
+              >
+                {deleting ? 'Removing…' : (game._id ? 'Remove from library' : 'Cancel')}
+              </button>
+            </form>
+          </div>
 
-                    <button type="submit" className="btn-primary" style={{ padding: '1rem', marginTop: '0.5rem', borderRadius: '6px' }} disabled={saving}>
-                        {saving ? 'Saving...' : 'Save & Update'}
-                    </button>
-                    
-                    <button type="button" onClick={handleDelete} style={{ background: 'transparent', color: 'var(--text-muted)', border: 'none', padding: '0.5rem', textDecoration: 'underline' }} disabled={deleting}>
-                        {deleting ? 'Removing...' : (game._id ? 'Remove from library' : 'Cancel')}
-                    </button>
-                </form>
+          {/* ── RIGHT: info + logs ──────────────────────── */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem', flex: '1 1 380px', minWidth: 0 }}>
+
+            {/* Title + genres */}
+            <div>
+              <h1 style={{
+                fontSize: 'clamp(1.5rem, 4vw, 2.2rem)',
+                fontWeight: 700, lineHeight: 1.15,
+                marginBottom: '0.75rem',
+              }}>
+                {game.title}
+              </h1>
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                {game.genres?.map((g: string) => (
+                  <span key={g} style={{
+                    background: 'rgba(255,255,255,0.07)',
+                    border: '1px solid var(--border)',
+                    padding: '0.15rem 0.65rem',
+                    borderRadius: '100px',
+                    fontSize: '0.78rem',
+                    color: 'var(--text-muted)',
+                  }}>
+                    {g}
+                  </span>
+                ))}
+              </div>
             </div>
 
-            {/* RIGHT COLUMN: Game Info and Reviews Log */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', flex: '3 1 400px' }}>
-                
-                <div>
-                    <h1 style={{ fontSize: '2.5rem', margin: '0 0 0.5rem 0', lineHeight: 1.2, textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>{game.title}</h1>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-                        {game.genres?.map((g: string) => (
-                            <span key={g} style={{ backgroundColor: 'var(--border-color)', padding: '0.2rem 0.8rem', borderRadius: '20px', fontSize: '0.85rem', color: 'var(--text-main)' }}>{g}</span>
-                        ))}
-                    </div>
-                </div>
+            {/* Synopsis */}
+            <div style={{
+              color: 'var(--text-muted)', lineHeight: 1.7, fontSize: '0.95rem',
+              maxHeight: '140px', overflowY: 'auto',
+            }}>
+              {loadingDetails ? (
+                <span style={{ opacity: 0.5 }}>Loading synopsis…</span>
+              ) : gameDetails?.description_raw ? (
+                <p>{gameDetails.description_raw.slice(0, 500)}{gameDetails.description_raw.length > 500 ? '…' : ''}</p>
+              ) : (
+                <span style={{ fontStyle: 'italic' }}>No description available.</span>
+              )}
+            </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    <div style={{ color: 'var(--text-muted)', lineHeight: 1.6, fontSize: '1.05rem', paddingRight: '1rem' }}>
-                        {loadingDetails ? (
-                            <span style={{ opacity: 0.5 }}>Loading synopsis...</span>
-                        ) : gameDetails?.description_raw ? (
-                            <p>{gameDetails.description_raw}</p>
-                        ) : (
-                            <span style={{ fontStyle: 'italic' }}>No description available.</span>
+            {/* Review logs */}
+            <div>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '0.75rem',
+                marginBottom: '1rem',
+                paddingBottom: '0.75rem',
+                borderBottom: '1px solid var(--border)',
+              }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Review Logs</h3>
+                {reviewLogs.length > 0 && (
+                  <span style={{
+                    background: 'var(--bg-surface-2)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '100px',
+                    padding: '0.1rem 0.55rem',
+                    fontSize: '0.75rem',
+                    color: 'var(--text-muted)',
+                    fontFamily: "'DM Mono', monospace",
+                  }}>
+                    {reviewLogs.length}
+                  </span>
+                )}
+              </div>
+
+              {/* Existing logs */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                {reviewLogs.map((log: any, idx: number) => (
+                  <div key={idx} style={{
+                    padding: '1rem 1.1rem',
+                    background: 'var(--bg-surface-2)',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border)',
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.4rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--accent-violet)' }}>{user?.username || 'You'}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>·</span>
+                        <span style={{ color: 'var(--text-muted)' }}>
+                          {log.createdAt ? new Date(log.createdAt).toLocaleDateString() : 'Previous log'}
+                        </span>
+                        {log.hoursPlayed !== undefined && (
+                          <>
+                            <span style={{ color: 'var(--text-muted)' }}>·</span>
+                            <span style={{ color: 'var(--text-muted)', fontFamily: "'DM Mono', monospace" }}>
+                              {log.hoursPlayed}h
+                            </span>
+                          </>
                         )}
+                      </div>
+                      {log.rating > 0 && <div style={{ display: 'flex', gap: '2px' }}>{renderStaticStars(log.rating)}</div>}
                     </div>
+                    <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.6 }}>{log.text}</p>
+                  </div>
+                ))}
 
-                    {/* REVIEWS LOG SECTION */}
-                    <div style={{ marginTop: '1rem' }}>
-                        <h3 style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1rem', color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: 500 }}>
-                            Review Logs
-                        </h3>
-                        
-                        {/* List of existing logs */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: reviewLogs.length > 0 ? '1.5rem' : '0' }}>
-                            {reviewLogs.map((log: any, idx: number) => (
-                                <div key={idx} style={{ padding: '1rem', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <strong style={{ color: 'var(--accent-blue)' }}>{user?.username || 'You'}</strong>
-                                            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                                                • {log.createdAt ? new Date(log.createdAt).toLocaleDateString() : 'Previous Log'}
-                                            </span>
-                                            {log.hoursPlayed !== undefined && (
-                                                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                                                    • {log.hoursPlayed}h played
-                                                </span>
-                                            )}
-                                        </div>
-                                        {log.rating > 0 && renderStaticStars(log.rating)}
-                                    </div>
-                                    <p style={{ margin: 0, color: 'var(--text-main)', lineHeight: 1.5 }}>{log.text}</p>
-                                </div>
-                            ))}
-                            
-                            {/* Migrated legacy review if any */}
-                            {game.review && reviewLogs.length === 0 && (
-                                <div style={{ padding: '1rem', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <strong style={{ color: 'var(--accent-blue)' }}>{user?.username || 'You'}</strong>
-                                            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>• Heritage Log</span>
-                                            {game.hoursPlayed !== undefined && (
-                                                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                                                    • {game.hoursPlayed}h played
-                                                </span>
-                                            )}
-                                        </div>
-                                        {game.rating > 0 && renderStaticStars(game.rating)}
-                                    </div>
-                                    <p style={{ margin: 0, color: 'var(--text-main)', lineHeight: 1.5 }}>{game.review}</p>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* New Review Entry box */}
-                        <div style={{ marginTop: '0.5rem' }}>
-                            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 600 }}>Log a new review...</label>
-                            <textarea 
-                                value={newReviewText} 
-                                onChange={(e) => setNewReviewText(e.target.value)} 
-                                rows={4} 
-                                style={{ 
-                                    width: '100%', padding: '1rem', borderRadius: '8px', 
-                                    backgroundColor: 'var(--bg-dark)', color: 'white', 
-                                    border: '1px solid var(--border-color)', resize: 'vertical',
-                                    fontSize: '1rem', lineHeight: 1.5, fontFamily: 'inherit'
-                                }} 
-                                placeholder="Write your thoughts about this playthrough..." 
-                            />
-                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                                Saving will attach your current rating, hours played, and the current date to this entry.
-                            </p>
-                        </div>
-
+                {/* Legacy review */}
+                {game.review && reviewLogs.length === 0 && (
+                  <div style={{
+                    padding: '1rem 1.1rem',
+                    background: 'var(--bg-surface-2)',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border)',
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                      <span style={{ fontWeight: 700, color: 'var(--accent-violet)', fontSize: '0.82rem' }}>{user?.username || 'You'}</span>
+                      {game.rating > 0 && <div style={{ display: 'flex', gap: '2px' }}>{renderStaticStars(game.rating)}</div>}
                     </div>
-                </div>
+                    <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.6 }}>{game.review}</p>
+                  </div>
+                )}
+              </div>
 
+              {/* New review entry */}
+              <div>
+                <p style={{
+                  fontSize: '0.68rem', fontWeight: 700,
+                  letterSpacing: '0.12em', textTransform: 'uppercase',
+                  color: 'var(--text-muted)', marginBottom: '0.5rem'
+                }}>
+                  Log a new entry
+                </p>
+                <textarea
+                  value={newReviewText}
+                  onChange={(e) => setNewReviewText(e.target.value)}
+                  rows={3}
+                  placeholder="Write your thoughts about this playthrough…"
+                  style={{
+                    width: '100%',
+                    background: 'var(--bg-surface-2)',
+                    border: '1px solid var(--border-strong)',
+                    borderRadius: '10px',
+                    padding: '0.85rem 1rem',
+                    fontSize: '0.9rem',
+                    lineHeight: 1.6,
+                    color: 'var(--text-primary)',
+                    fontFamily: 'inherit',
+                    resize: 'vertical',
+                    outline: 'none',
+                    transition: 'border-color 0.2s',
+                  }}
+                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                  onBlur={e => (e.currentTarget.style.borderColor = 'var(--border-strong)')}
+                />
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginTop: '0.4rem' }}>
+                  Current rating + hours will be attached when you save.
+                </p>
+              </div>
             </div>
+          </div>
         </div>
       </div>
     </div>

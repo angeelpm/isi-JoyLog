@@ -15,7 +15,6 @@ export const RegisterPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
     try {
       const response = await api.post('/api/auth/register', { username, email, password });
       login(response.data.token, response.data.user);
@@ -30,53 +29,120 @@ export const RegisterPage = () => {
   };
 
   return (
-    <div className="page-container" style={{ maxWidth: '400px', marginTop: '4rem' }}>
-      <div className="glass-card">
-        <h2 style={{ textAlign: 'center', marginBottom: '2rem', color: 'var(--accent-blue)' }}>Join JoyLog</h2>
-        
-        {error && <div style={{ color: 'var(--accent-red)', marginBottom: '1rem', textAlign: 'center' }}>{error}</div>}
-        
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Username</label>
-            <input 
-              type="text" 
-              value={username} 
-              onChange={(e) => setUsername(e.target.value)} 
-              required 
-              style={{ width: '100%' }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Email</label>
-            <input 
-              type="email" 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
-              required 
-              style={{ width: '100%' }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Password</label>
-            <input 
-              type="password" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              required 
-              style={{ width: '100%' }}
-              minLength={6}
-            />
-          </div>
-          
-          <button type="submit" className="btn-primary" style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: 'var(--accent-blue)' }}>
-            Sign Up
-          </button>
-        </form>
-        
-        <div style={{ marginTop: '1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-          Already have an account? <Link to="/login" style={{ color: 'var(--accent-green)' }}>Log in</Link>
+    <div style={{
+      minHeight: 'calc(100vh - 62px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '2rem',
+      position: 'relative',
+    }}>
+      {/* Ghost backdrop text */}
+      <div aria-hidden style={{
+        position: 'fixed',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        fontFamily: "'Unbounded', sans-serif",
+        fontSize: 'clamp(6rem, 18vw, 14rem)',
+        fontWeight: 900,
+        color: 'transparent',
+        WebkitTextStroke: '1px rgba(255,255,255,0.035)',
+        pointerEvents: 'none',
+        userSelect: 'none',
+        zIndex: 0,
+        whiteSpace: 'nowrap',
+        letterSpacing: '0.05em',
+      }}>
+        JOYLOG
+      </div>
+
+      <div style={{ width: '100%', maxWidth: '400px', position: 'relative', zIndex: 1 }}>
+        {/* Header */}
+        <div style={{ marginBottom: '2rem' }}>
+          <p style={{
+            fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.15em',
+            textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem'
+          }}>
+            Game Vault
+          </p>
+          <h1 style={{
+            fontFamily: "'Unbounded', sans-serif",
+            fontSize: '1.65rem', fontWeight: 900, lineHeight: 1.1
+          }}>
+            Build your vault
+          </h1>
         </div>
+
+        {/* Card */}
+        <div style={{
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+          borderTop: '2px solid var(--accent-violet)',
+          borderRadius: '16px',
+          padding: '2rem',
+        }}>
+          {error && (
+            <div style={{
+              background: 'rgba(255, 59, 92, 0.08)',
+              border: '1px solid rgba(255, 59, 92, 0.25)',
+              borderRadius: '10px',
+              padding: '0.75rem 1rem',
+              color: 'var(--accent)',
+              marginBottom: '1.75rem',
+              fontSize: '0.88rem',
+            }}>
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+            <div className="form-group">
+              <label className="form-label">Username</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="gamertag"
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                minLength={6}
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btn-primary"
+              style={{ width: '100%', padding: '0.85rem', fontSize: '0.95rem', borderRadius: '10px', background: 'var(--accent-violet)', marginTop: '0.25rem' }}
+            >
+              Create Account
+            </button>
+          </form>
+        </div>
+
+        <p style={{ textAlign: 'center', marginTop: '1.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+          Already have a vault?{' '}
+          <Link to="/login" style={{ color: 'var(--accent)', fontWeight: 600 }}>Sign in</Link>
+        </p>
       </div>
     </div>
   );

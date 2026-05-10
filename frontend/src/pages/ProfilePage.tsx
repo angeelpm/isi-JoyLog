@@ -8,9 +8,7 @@ export const ProfilePage = () => {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (user?.bio) {
-      setBio(user.bio);
-    }
+    if (user?.bio) setBio(user.bio);
   }, [user]);
 
   const handleSave = async () => {
@@ -30,51 +28,83 @@ export const ProfilePage = () => {
 
   if (!user) return null;
 
+  const initial = user.username.charAt(0).toUpperCase();
+
   return (
-    <div className="page-container" style={{ maxWidth: '600px' }}>
-      <h1 style={{ marginBottom: '2rem' }}>Profile</h1>
-      
-      <div className="glass-card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', marginBottom: '2rem' }}>
-          <div style={{ 
-            width: '100px', 
-            height: '100px', 
-            borderRadius: '50%', 
-            backgroundColor: 'var(--accent-blue)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '3rem',
-            fontWeight: 'bold',
-            color: 'white'
+    <div className="page-container" style={{ maxWidth: '640px' }}>
+      {/* Header */}
+      <div style={{ marginBottom: '2rem' }}>
+        <p style={{
+          fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.15em',
+          textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem'
+        }}>
+          Account
+        </p>
+        <h1 style={{
+          fontFamily: "'Unbounded', sans-serif",
+          fontSize: 'clamp(1.4rem, 4vw, 2rem)',
+          fontWeight: 900, lineHeight: 1
+        }}>
+          Profile
+        </h1>
+      </div>
+
+      {/* Card */}
+      <div style={{
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border)',
+        borderRadius: '20px',
+        overflow: 'hidden',
+      }}>
+        {/* Avatar banner */}
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(155, 127, 244, 0.15) 0%, rgba(255, 59, 92, 0.1) 100%)',
+          borderBottom: '1px solid var(--border)',
+          padding: '2rem',
+          display: 'flex', alignItems: 'center', gap: '1.5rem',
+        }}>
+          <div style={{
+            width: '80px', height: '80px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, var(--accent-violet), var(--accent))',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: "'Unbounded', sans-serif",
+            fontSize: '2rem', fontWeight: 700, color: '#fff',
+            flexShrink: 0,
+            boxShadow: '0 0 0 3px rgba(255,255,255,0.08)',
           }}>
-            {user.username.charAt(0).toUpperCase()}
+            {initial}
           </div>
           <div>
-            <h2 style={{ color: 'var(--text-main)', marginBottom: '0.2rem' }}>{user.username}</h2>
-            <div style={{ color: 'var(--text-muted)' }}>{user.email}</div>
+            <h2 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '0.15rem' }}>
+              {user.username}
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{user.email}</p>
           </div>
         </div>
 
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Bio</label>
-          <textarea 
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            rows={4}
-            style={{ width: '100%', resize: 'vertical' }}
-            placeholder="Tell us about your gaming habits..."
-          />
-        </div>
+        {/* Bio section */}
+        <div style={{ padding: '2rem' }}>
+          <div className="form-group" style={{ marginBottom: '2rem' }}>
+            <label className="form-label">Bio</label>
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              rows={4}
+              placeholder="Tell us about your gaming habits..."
+              style={{ marginTop: '0.5rem' }}
+            />
+          </div>
 
-        <button 
-          className="btn-primary" 
-          onClick={handleSave} 
-          disabled={saving}
-          style={{ width: '100%' }}
-        >
-          {saving ? 'Saving...' : 'Save Profile'}
-        </button>
+          <button
+            className="btn-primary"
+            onClick={handleSave}
+            disabled={saving}
+            style={{ width: '100%', padding: '0.85rem', borderRadius: '10px' }}
+          >
+            {saving ? 'Saving…' : 'Save Profile'}
+          </button>
+        </div>
       </div>
     </div>
   );
