@@ -66,6 +66,11 @@ export const updateGame = async (req: AuthRequest, res: Response): Promise<void>
         const { id } = req.params;
         const updateData = req.body;
 
+        // Always persist username so community reviews never show "Anonymous"
+        if (req.username) {
+            updateData.username = req.username;
+        }
+
         // Auto-set date fields based on status changes
         if (updateData.status === 'completed' && !updateData.completedAt) {
             updateData.completedAt = new Date();
@@ -115,13 +120,15 @@ export const getGameReviews = async (req: AuthRequest, res: Response): Promise<v
     try {
         const { rawgGameId } = req.params;
         
-        // Find all entries for this game that have either reviewLogs or a legacy review
-        const entries = await GameEntry.find({ 
-            rawgGameId, 
-            $or: [ 
-                { 'reviewLogs.0': { $exists: true } }, 
-                { review: { $ne: '', $exists: true } } 
-            ] 
+        // Find other users' entries for this game that have reviews
+        // Exclude current user — they already see their own logs in the Review Logs section
+        const entries = await GameEntry.find({
+            rawgGameId,
+            userId: { $ne: req.userId },
+            $or: [
+                { 'reviewLogs.0': { $exists: true } },
+                { review: { $ne: '', $exists: true } }
+            ]
         });
 
         let allReviews: any[] = [];
