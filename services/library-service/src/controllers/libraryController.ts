@@ -27,7 +27,7 @@ export const getLibrary = async (req: AuthRequest, res: Response): Promise<void>
 // POST / - Add game to library
 export const addGame = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const { rawgGameId, title, coverImage, status, rating, review, hoursPlayed, platforms, genres } = req.body;
+        const { rawgGameId, title, coverImage, status, rating, review, reviewLogs, hoursPlayed, platforms, genres } = req.body;
 
         // Check if game already in library
         const existing = await GameEntry.findOne({ userId: req.userId, rawgGameId });
@@ -44,6 +44,7 @@ export const addGame = async (req: AuthRequest, res: Response): Promise<void> =>
             status: status || 'backlog',
             rating,
             review,
+            reviewLogs,
             hoursPlayed,
             platforms,
             genres,
