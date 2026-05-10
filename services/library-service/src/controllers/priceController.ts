@@ -31,15 +31,21 @@ interface ITADDeal {
     url: string;
 }
 
+interface ITADHistoryLow {
+    all: ITADPrice;
+    y1: ITADPrice;
+    m3: ITADPrice;
+}
+
 interface ITADPricesResponseItem {
     id: string;
     deals: ITADDeal[];
-    historyLow: ITADPrice | null;
+    historyLow: ITADHistoryLow | null;
 }
 
 // GET /prices?title=<game title>
 export const getGamePrices = async (req: Request, res: Response): Promise<void> => {
-    const { title } = req.query;
+    const { title, country = 'ES' } = req.query;
 
     // --- Validation ---
     if (!title || typeof title !== 'string' || title.trim() === '') {
@@ -54,6 +60,7 @@ export const getGamePrices = async (req: Request, res: Response): Promise<void> 
     }
 
     const trimmedTitle = title.trim();
+    const targetCountry = typeof country === 'string' ? country.toUpperCase() : 'ES';
 
     // --- Step 1: Search for the game on ITAD by title ---
     let itadGame: ITADSearchResult | null = null;
@@ -86,11 +93,11 @@ export const getGamePrices = async (req: Request, res: Response): Promise<void> 
     // --- Step 2: Fetch current prices for the found game UUID ---
     let priceData: ITADPricesResponseItem | null = null;
     try {
-        const pricesUrl = `${ITAD_BASE_URL}/games/prices/v3?key=${apiKey}&country=US`;
+        const pricesUrl = `${ITAD_BASE_URL}/games/prices/v3?key=${apiKey}&country=${targetCountry}`;
         const pricesRes = await fetch(pricesUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify([{ id: itadGame.id }]),
+            body: JSON.stringify([itadGame.id]),
         });
 
         if (!pricesRes.ok) {
@@ -161,10 +168,10 @@ export const getGamePrices = async (req: Request, res: Response): Promise<void> 
             drm: deal.drm.map((d) => d.name),
             platforms: deal.platforms.map((p) => p.name),
         })),
-        historyLow: priceData.historyLow
+        historyLow: priceData.historyLow?.all
             ? {
-                amount: priceData.historyLow.amount,
-                currency: priceData.historyLow.currency,
+                amount: priceData.historyLow.all.amount,
+                currency: priceData.historyLow.all.currency,
             }
             : null,
     });
