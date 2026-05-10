@@ -1,7 +1,13 @@
 FROM node:20-alpine
 WORKDIR /usr/src/app
-COPY package*.json ./
+
+# Copy workspace manifests so npm can resolve all members
+COPY package.json package-lock.json* ./
+COPY services/api-gateway/package.json ./services/api-gateway/
+COPY services/auth-service/package.json ./services/auth-service/
+COPY services/library-service/package.json ./services/library-service/
+COPY frontend/package.json ./frontend/
+
 RUN npm install
-COPY . .
+
 EXPOSE 3000
-CMD ["npm", "run", "dev"]
