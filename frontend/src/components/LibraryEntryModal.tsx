@@ -21,14 +21,16 @@ const STATUS_OPTIONS = [
 export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onClose, onUpdated }) => {
   const { user } = useAuth();
 
-  const [status, setStatus]             = useState(game.status || 'wishlist');
-  const [rating, setRating]             = useState(game.rating || '');
-  const [hoursPlayed, setHoursPlayed]   = useState(game.hoursPlayed || 0);
-  const [reviewLogs]                     = useState<any[]>(game.reviewLogs || []);
+  const [status, setStatus]           = useState(game.status || 'wishlist');
+  const [rating, setRating]           = useState(game.rating || '');
+  const [hoursPlayed, setHoursPlayed] = useState(game.hoursPlayed || 0);
+  const [reviewLogs, setReviewLogs]   = useState<any[]>(game.reviewLogs || []);
   const [newReviewText, setNewReviewText] = useState('');
-  const [saving, setSaving]             = useState(false);
-  const [deleting, setDeleting]         = useState(false);
-  const [gameDetails, setGameDetails]   = useState<any>(null);
+  const [saving, setSaving]           = useState(false);
+  const [addingLog, setAddingLog]     = useState(false);
+  const [deleting, setDeleting]       = useState(false);
+  const [hasAddedLog, setHasAddedLog] = useState(false);
+  const [gameDetails, setGameDetails] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [communityReviews, setCommunityReviews] = useState<any[]>([]);
 
@@ -59,24 +61,15 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
     }
   }, [game.rawgGameId]);
 
-  const handleSave = async (e: React.FormEvent) => {
+  // Saves only the library metadata (status, rating, hours) — no review
+  const handleSaveLibrary = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      const updatedLogs = [...reviewLogs];
-      if (newReviewText.trim()) {
-        updatedLogs.push({
-          text: newReviewText,
-          rating: rating === '' ? undefined : Number(rating),
-          hoursPlayed: Number(hoursPlayed),
-          createdAt: new Date().toISOString(),
-        });
-      }
       const payload = {
         status,
         rating: rating === '' ? undefined : Number(rating),
         hoursPlayed: Number(hoursPlayed),
-        reviewLogs: updatedLogs,
       };
       if (game._id) {
         await LibraryAPI.updateGame(game._id, payload);
@@ -97,6 +90,30 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
       alert(game._id ? 'Failed to update game entry' : 'Failed to add game entry');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Appends a new review log without touching library metadata
+  const handleAddLog = async () => {
+    if (!newReviewText.trim() || !game._id) return;
+    setAddingLog(true);
+    try {
+      const newLog = {
+        text: newReviewText.trim(),
+        rating: rating === '' ? undefined : Number(rating),
+        hoursPlayed: Number(hoursPlayed),
+        createdAt: new Date().toISOString(),
+      };
+      const updatedLogs = [...reviewLogs, newLog];
+      await LibraryAPI.updateGame(game._id, { reviewLogs: updatedLogs });
+      setReviewLogs(updatedLogs);
+      setNewReviewText('');
+      setHasAddedLog(true);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to add log');
+    } finally {
+      setAddingLog(false);
     }
   };
 
@@ -150,7 +167,7 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
 
   return (
     <div
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget) { hasAddedLog ? onUpdated() : onClose(); } }}
       style={{
         position: 'fixed', inset: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.88)',
@@ -190,7 +207,7 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
 
         {/* Close button */}
         <button
-          onClick={onClose}
+          onClick={() => { hasAddedLog ? onUpdated() : onClose(); }}
           style={{
             position: 'absolute', top: '1rem', right: '1rem',
             background: 'rgba(255,255,255,0.08)',
@@ -217,7 +234,7 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
           position: 'relative', zIndex: 1,
         }}>
 
-          {/* ── LEFT: poster + form ─────────────────────── */}
+          {/* ── LEFT: poster + library form ─────────────────────── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', flex: '0 0 240px', maxWidth: '240px' }}>
             <img
               src={game.coverImage || ''}
@@ -229,7 +246,7 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
               }}
             />
 
-            <form onSubmit={handleSave} style={{
+            <form onSubmit={handleSaveLibrary} style={{
               display: 'flex', flexDirection: 'column', gap: '1.25rem',
               background: 'var(--bg-surface-2)',
               padding: '1.25rem', borderRadius: '12px',
@@ -412,6 +429,7 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
                   </div>
                 )}
               </div>
+
               {/* Community Reviews Section */}
               {communityReviews.length > 0 && (
                 <div style={{ marginTop: '2rem' }}>
@@ -477,31 +495,51 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
                 }}>
                   Log a new entry
                 </p>
-                <textarea
-                  value={newReviewText}
-                  onChange={(e) => setNewReviewText(e.target.value)}
-                  rows={3}
-                  placeholder="Write your thoughts about this playthrough…"
-                  style={{
-                    width: '100%',
-                    background: 'var(--bg-surface-2)',
-                    border: '1px solid var(--border-strong)',
-                    borderRadius: '10px',
-                    padding: '0.85rem 1rem',
-                    fontSize: '0.9rem',
-                    lineHeight: 1.6,
-                    color: 'var(--text-primary)',
-                    fontFamily: 'inherit',
-                    resize: 'vertical',
-                    outline: 'none',
-                    transition: 'border-color 0.2s',
-                  }}
-                  onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
-                  onBlur={e => (e.currentTarget.style.borderColor = 'var(--border-strong)')}
-                />
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginTop: '0.4rem' }}>
-                  Current rating + hours will be attached when you save.
-                </p>
+
+                {!game._id ? (
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                    Add the game to your library first to log a review.
+                  </p>
+                ) : (
+                  <>
+                    <textarea
+                      value={newReviewText}
+                      onChange={(e) => setNewReviewText(e.target.value)}
+                      rows={3}
+                      placeholder="Write your thoughts about this playthrough…"
+                      style={{
+                        width: '100%',
+                        background: 'var(--bg-surface-2)',
+                        border: '1px solid var(--border-strong)',
+                        borderRadius: '10px',
+                        padding: '0.85rem 1rem',
+                        fontSize: '0.9rem',
+                        lineHeight: 1.6,
+                        color: 'var(--text-primary)',
+                        fontFamily: 'inherit',
+                        resize: 'vertical',
+                        outline: 'none',
+                        transition: 'border-color 0.2s',
+                      }}
+                      onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                      onBlur={e => (e.currentTarget.style.borderColor = 'var(--border-strong)')}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem' }}>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-faint)', margin: 0 }}>
+                        Current rating + hours will be attached to this log.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleAddLog}
+                        disabled={addingLog || !newReviewText.trim()}
+                        className="btn-primary"
+                        style={{ padding: '0.55rem 1.25rem', borderRadius: '8px', fontSize: '0.85rem', flexShrink: 0 }}
+                      >
+                        {addingLog ? 'Adding…' : 'Add Log'}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
