@@ -92,11 +92,3 @@ joylog/
     > A partir de ahora, cuando quieras añadir una librería a un microservicio específico en lugar de hacer `npm install express` dentro de una carpeta, utiliza el comando raíz:
     > `npm install express --workspace=auth-service` (o `api-gateway`, o `joylog-frontend`).
     > De esta forma el entorno lo mantendrá en la raíz y lo enlazará automáticamente al servicio.
-
-### [Sprint 3] - Logica de Biblioteca Completa (CRUD)
-* **Fecha:** Abril 2026
-* **Contexto de código:**
-  - **Library Service (`/services/library-service/`)**: Instanciado el CRUD para `GameEntry`.
-  - **Middleware JWT:** `authMiddleware.ts` intercepta peticiones a `/api/library` con un token JWT Bearer, extrae el ID de usuario e inyecta la identidad en los request.
-  - **Mongoose Mapeo Compuesto:** Se actualizó `interfaces.ts` con mejores propiedades. El schema `GameEntry` garantiza la no-duplicidad con una restrucción de índice en `{ userId: 1, gameId: 1 }`.
-  - Refactorizado un archivo independiente `app.ts` (en library-service) enfocado en tests para imitar en este backend el ecosistema de Jest implementado en auth.
