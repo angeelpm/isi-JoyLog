@@ -17,11 +17,12 @@ interface AIRecommendationsWidgetProps {
 }
 
 const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 async function fetchRecommendations(prompt: string): Promise<Recommendation[]> {
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey) throw new Error('VITE_GEMINI_API_KEY not set');
+
 
   const systemPrompt = `You are a video game recommendation AI. ${prompt}
 Return ONLY a valid JSON array (no markdown, no explanation) of exactly 5 game recommendations with this exact structure:
@@ -32,14 +33,17 @@ Return ONLY a valid JSON array (no markdown, no explanation) of exactly 5 game r
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: systemPrompt }] }],
-      generationConfig: { temperature: 0.8, maxOutputTokens: 1024 },
+      generationConfig: { temperature: 0.8, maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } },
     }),
   });
 
   if (!res.ok) throw new Error(`Gemini error ${res.status}`);
 
   const data = await res.json();
-  const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  const parts = data.candidates?.[0]?.content?.parts ?? [];
+  const raw = parts.find((p: {text?: string}) => p.text && !p.text.startsWith('<'))?.text
+    ?? parts[parts.length - 1]?.text
+    ?? '';
   const clean = raw.replace(/```json|```/g, '').trim();
   return JSON.parse(clean) as Recommendation[];
 }
