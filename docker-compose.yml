@@ -78,6 +78,7 @@ services:
       - "5173:5173"
     environment:
       - VITE_API_URL=http://localhost:3000
+      - VITE_GEMINI_API_KEY=${VITE_GEMINI_API_KEY}
     volumes:
       - .:/usr/src/app
       - frontend_nm:/usr/src/app/node_modules

@@ -162,7 +162,7 @@ export const getGamePrices = async (req: Request, res: Response): Promise<void> 
             drm: deal.drm.map((d) => d.name),
             platforms: deal.platforms.map((p) => p.name),
         })),
-        historyLow: priceData.historyLow
+        historyLow: priceData.historyLow?.amount != null
             ? {
                 amount: priceData.historyLow.amount,
                 currency: priceData.historyLow.currency,
