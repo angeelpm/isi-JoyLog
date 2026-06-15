@@ -355,7 +355,7 @@ describe('Step 2 – ITAD Price Fetch failures', () => {
         expect(pricesUrl).toContain('country=US');
         expect(pricesInit.method).toBe('POST');
         expect((pricesInit.headers as Record<string, string>)['Content-Type']).toBe('application/json');
-        expect(JSON.parse(pricesInit.body as string)).toEqual([{ id: MOCK_GAME.id }]);
+        expect(JSON.parse(pricesInit.body as string)).toEqual([MOCK_GAME.id]);
     });
 });
 

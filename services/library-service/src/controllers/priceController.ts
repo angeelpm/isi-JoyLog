@@ -91,7 +91,7 @@ export const getGamePrices = async (req: Request, res: Response): Promise<void> 
         const pricesRes = await fetch(pricesUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify([{ id: itadGame.id }]),
+            body: JSON.stringify([itadGame.id]),
         });
 
         if (!pricesRes.ok) {
