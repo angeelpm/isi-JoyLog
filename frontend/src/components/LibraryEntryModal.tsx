@@ -167,7 +167,7 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
 
   return (
     <div
-      onClick={(e) => { if (e.target === e.currentTarget) { hasAddedLog ? onUpdated() : onClose(); } }}
+      onClick={(e) => { if (e.target === e.currentTarget) { if (hasAddedLog) { onUpdated(); } else { onClose(); } } }}
       style={{
         position: 'fixed', inset: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.88)',
@@ -207,7 +207,7 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
 
         {/* Close button */}
         <button
-          onClick={() => { hasAddedLog ? onUpdated() : onClose(); }}
+          onClick={() => { if (hasAddedLog) { onUpdated(); } else { onClose(); } }}
           style={{
             position: 'absolute', top: '1rem', right: '1rem',
             background: 'rgba(255,255,255,0.08)',
