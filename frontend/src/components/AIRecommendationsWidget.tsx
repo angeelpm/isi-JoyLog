@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Sparkles, BookOpen, Search, Loader } from 'lucide-react';
+import { Sparkles, BookOpen, Search, Loader, Plus } from 'lucide-react';
+import { RawgAPI } from '../services/api';
 
 interface Recommendation {
   title: string;
@@ -14,6 +15,7 @@ interface AIRecommendationsWidgetProps {
     recentGames?: string[];
     totalCompleted?: number;
   };
+  onGameSelect?: (game: object) => void;
 }
 
 const GEMINI_URL =
@@ -48,12 +50,35 @@ Return ONLY a valid JSON array (no markdown, no explanation) of exactly 5 game r
   return JSON.parse(clean) as Recommendation[];
 }
 
-export const AIRecommendationsWidget = ({ userStats }: AIRecommendationsWidgetProps) => {
+export const AIRecommendationsWidget = ({ userStats, onGameSelect }: AIRecommendationsWidgetProps) => {
   const [mode, setMode] = useState<'theme' | 'library'>('theme');
   const [themeInput, setThemeInput] = useState('');
   const [results, setResults] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [addingGame, setAddingGame] = useState<string | null>(null);
+
+  const handleAddGame = async (title: string) => {
+    if (!onGameSelect || addingGame) return;
+    setAddingGame(title);
+    try {
+      const { data } = await RawgAPI.searchGames(title, undefined, 1);
+      const game = data.results?.[0];
+      if (!game) return;
+      onGameSelect({
+        rawgGameId: game.id,
+        title: game.name,
+        coverImage: game.background_image,
+        platforms: game.platforms?.map((p: { platform: { name: string } }) => p.platform.name) || [],
+        genres: game.genres?.map((g: { name: string }) => g.name) || [],
+        status: 'wishlist',
+      });
+    } catch {
+      // silently fail — user can add manually from search
+    } finally {
+      setAddingGame(null);
+    }
+  };
 
   const handleThemeSearch = async () => {
     if (!themeInput.trim()) return;
@@ -200,6 +225,7 @@ export const AIRecommendationsWidget = ({ userStats }: AIRecommendationsWidgetPr
           {results.map((rec, i) => (
             <div
               key={i}
+              onClick={() => handleAddGame(rec.title)}
               style={{
                 background: 'var(--bg-base)',
                 border: '1px solid var(--border)',
@@ -207,7 +233,11 @@ export const AIRecommendationsWidget = ({ userStats }: AIRecommendationsWidgetPr
                 padding: '0.9rem 1.1rem',
                 display: 'flex', alignItems: 'flex-start', gap: '1rem',
                 animation: `fadeInUp 0.3s ease-out ${i * 0.07}s both`,
+                cursor: onGameSelect ? 'pointer' : 'default',
+                transition: 'border-color 0.15s, background 0.15s',
               }}
+              onMouseEnter={e => { if (onGameSelect) (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--accent-violet)'; }}
+              onMouseLeave={e => { if (onGameSelect) (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)'; }}
             >
               <span style={{
                 fontFamily: "'DM Mono', monospace", fontSize: '0.7rem',
@@ -230,12 +260,19 @@ export const AIRecommendationsWidget = ({ userStats }: AIRecommendationsWidgetPr
                   {rec.reason}
                 </p>
               </div>
-              <span style={{
-                fontFamily: "'DM Mono', monospace", fontSize: '0.78rem',
-                color: 'var(--status-completed)', whiteSpace: 'nowrap', paddingTop: '2px',
-              }}>
-                {rec.price}
-              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.4rem', flexShrink: 0 }}>
+                <span style={{
+                  fontFamily: "'DM Mono', monospace", fontSize: '0.78rem',
+                  color: 'var(--status-completed)', whiteSpace: 'nowrap',
+                }}>
+                  {rec.price}
+                </span>
+                {onGameSelect && (
+                  addingGame === rec.title
+                    ? <Loader size={14} className="spin" style={{ color: 'var(--accent-violet)' }} />
+                    : <Plus size={14} style={{ color: 'var(--accent-violet)', opacity: 0.7 }} />
+                )}
+              </div>
             </div>
           ))}
         </div>

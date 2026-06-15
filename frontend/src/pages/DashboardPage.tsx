@@ -118,6 +118,7 @@ export const DashboardPage = () => {
           recentGames: recentGames.map((g: any) => g.title),
           totalCompleted: stats?.completed ?? 0,
         }}
+        onGameSelect={(game) => setSelectedGame(game)}
       />
 
       {/* Recently Added */}
