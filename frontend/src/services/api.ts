@@ -36,7 +36,7 @@ export const LibraryAPI = {
 
 export const RawgAPI = {
   searchGames: (query: string, genre?: string, page: number = 1) => {
-    let url = `/api/games/games?`;
+    const url = `/api/games/games?`;
     const params = [];
     if (query) params.push(`search=${encodeURIComponent(query)}`);
     if (genre) params.push(`genres=${encodeURIComponent(genre)}`);
