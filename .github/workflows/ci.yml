@@ -1,0 +1,64 @@
+name: CI — JoyLog
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # JOB 1: Tests — backend (Jest) + frontend (Vitest) + lint
+  # ─────────────────────────────────────────────────────────────
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Test — auth-service
+        run: npm test --workspace=auth-service
+
+      - name: Test — library-service
+        run: npm test --workspace=library-service
+
+      - name: Test — frontend (Vitest)
+        run: npm test --workspace=joylog-frontend
+
+      - name: Lint — frontend (ESLint)
+        run: npm run lint --workspace=joylog-frontend
+
+      - name: Build — frontend (TypeScript + Vite)
+        run: npm run build --workspace=joylog-frontend
+
+  # ─────────────────────────────────────────────────────────────
+  # JOB 2: Docker — verifica que todas las imágenes compilan
+  # ─────────────────────────────────────────────────────────────
+  docker:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create placeholder .env
+        run: |
+          echo "RAWG_API_KEY=ci_placeholder" >> .env
+          echo "ITAD_API_KEY=ci_placeholder" >> .env
+          echo "JWT_SECRET=ci_placeholder_secret" >> .env
+
+      - name: Build all Docker images
+        run: docker compose build
