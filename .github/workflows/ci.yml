@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Test — ai-service
+        run: npm test --workspace=ai-service
+
       - name: Test — auth-service
         run: npm test --workspace=auth-service
 
