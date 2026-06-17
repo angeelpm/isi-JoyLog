@@ -60,3 +60,11 @@ export const SocialAPI = {
   likeReview: (gameEntryId: string, reviewLogId: string) => api.post('/api/library/likes', { gameEntryId, reviewLogId }),
   unlikeReview: (reviewLogId: string) => api.delete(`/api/library/likes/${reviewLogId}`),
 };
+
+export const AiAPI = {
+  getRecommendations: (payload: {
+    mode: 'theme' | 'library';
+    theme?: string;
+    userStats?: { topGenres?: string[]; recentGames?: string[]; totalCompleted?: number };
+  }) => api.post('/api/ai/recommendations', payload),
+};
