@@ -7,6 +7,8 @@ export interface IUser extends Document {
     avatarUrl?: string;
     bio?: string;
     favoriteGames?: string[];
+    followers: mongoose.Types.ObjectId[];
+    following: mongoose.Types.ObjectId[];
     createdAt?: Date;
     updatedAt?: Date;
 }
@@ -17,7 +19,9 @@ const UserSchema: Schema = new Schema({
     passwordHash: { type: String, required: true },
     avatarUrl: { type: String, default: '' },
     bio: { type: String, default: '' },
-    favoriteGames: [{ type: String }]
+    favoriteGames: [{ type: String }],
+    followers: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    following: [{ type: Schema.Types.ObjectId, ref: 'User' }],
 }, {
     timestamps: true
 });

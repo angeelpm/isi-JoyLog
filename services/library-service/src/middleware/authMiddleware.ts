@@ -26,3 +26,18 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
         res.status(401).json({ message: 'Invalid or expired token.' });
     }
 };
+
+export const optionalAuthMiddleware = (req: AuthRequest, _res: Response, next: NextFunction): void => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.split(' ')[1];
+            const decoded = jwt.verify(token, JWT_SECRET) as { id: string; username: string };
+            req.userId = decoded.id;
+            req.username = decoded.username;
+        }
+    } catch {
+        // invalid or absent token — ignored for public routes
+    }
+    next();
+};

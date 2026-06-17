@@ -93,6 +93,104 @@ export const getProfile = async (req: AuthRequest, res: Response): Promise<void>
     }
 };
 
+export const getUserProfile = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { username } = req.params;
+        const user = await User.findOne({ username });
+        if (!user) {
+            res.status(404).json({ message: 'User not found' });
+            return;
+        }
+        const isFollowing = req.userId
+            ? user.followers.some(id => id.toString() === req.userId)
+            : false;
+        res.json({
+            _id: user._id,
+            username: user.username,
+            bio: user.bio,
+            followersCount: user.followers.length,
+            followingCount: user.following.length,
+            isFollowing,
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error fetching user profile' });
+    }
+};
+
+export const followUser = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { userId } = req.params;
+        const currentUserId = req.userId!;
+
+        if (userId === currentUserId) {
+            res.status(400).json({ message: 'Cannot follow yourself' });
+            return;
+        }
+
+        const targetUser = await User.findById(userId);
+        if (!targetUser) {
+            res.status(404).json({ message: 'User not found' });
+            return;
+        }
+
+        await User.findByIdAndUpdate(userId, { $addToSet: { followers: currentUserId } });
+        await User.findByIdAndUpdate(currentUserId, { $addToSet: { following: userId } });
+
+        res.json({ message: 'Followed successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error following user' });
+    }
+};
+
+export const unfollowUser = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { userId } = req.params;
+        const currentUserId = req.userId!;
+
+        await User.findByIdAndUpdate(userId, { $pull: { followers: currentUserId } });
+        await User.findByIdAndUpdate(currentUserId, { $pull: { following: userId } });
+
+        res.json({ message: 'Unfollowed successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error unfollowing user' });
+    }
+};
+
+export const getFollowers = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { userId } = req.params;
+        const user = await User.findById(userId)
+            .populate<{ followers: { _id: string; username: string }[] }>('followers', '_id username');
+        if (!user) {
+            res.status(404).json({ message: 'User not found' });
+            return;
+        }
+        res.json(user.followers);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error fetching followers' });
+    }
+};
+
+export const getFollowing = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { userId } = req.params;
+        const user = await User.findById(userId)
+            .populate<{ following: { _id: string; username: string }[] }>('following', '_id username');
+        if (!user) {
+            res.status(404).json({ message: 'User not found' });
+            return;
+        }
+        res.json(user.following);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error fetching following' });
+    }
+};
+
 export const updateProfile = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { avatarUrl, bio, favoriteGames } = req.body;
