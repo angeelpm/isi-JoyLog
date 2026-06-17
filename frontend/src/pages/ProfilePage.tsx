@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { AuthAPI } from '../services/api';
 
@@ -80,6 +81,12 @@ export const ProfilePage = () => {
               {user.username}
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>{user.email}</p>
+            <Link
+              to={`/u/${user.username}`}
+              style={{ color: 'var(--accent-violet)', fontSize: '0.78rem', textDecoration: 'none' }}
+            >
+              View public profile →
+            </Link>
           </div>
         </div>
 

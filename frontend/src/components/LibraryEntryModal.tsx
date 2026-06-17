@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { LibraryAPI, RawgAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -463,7 +464,9 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.4rem' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem' }}>
-                            <span style={{ fontWeight: 700, color: 'var(--accent-violet)' }}>{log.username}</span>
+                            <Link to={`/u/${log.username}`} style={{ fontWeight: 700, color: 'var(--accent-violet)', textDecoration: 'none' }}>
+                              {log.username}
+                            </Link>
                             <span style={{ color: 'var(--text-muted)' }}>·</span>
                             <span style={{ color: 'var(--text-muted)' }}>
                               {log.createdAt ? new Date(log.createdAt).toLocaleDateString() : 'Unknown date'}

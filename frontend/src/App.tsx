@@ -7,6 +7,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { SearchPage } from './pages/SearchPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { PublicProfilePage } from './pages/PublicProfilePage';
 import { LibraryPage } from './pages/LibraryPage';
 
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
@@ -31,6 +32,7 @@ function AppRoutes() {
           <Route path="/search" element={<SearchPage />} />
           <Route path="/library" element={<LibraryPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/u/:username" element={<PublicProfilePage />} />
         </Route>
       </Routes>
     </>
