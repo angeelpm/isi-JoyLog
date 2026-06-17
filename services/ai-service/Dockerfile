@@ -10,4 +10,4 @@ COPY frontend/package.json ./frontend/
 
 RUN npm install
 
-EXPOSE 5173
+EXPOSE 3003

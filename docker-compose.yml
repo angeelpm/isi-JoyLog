@@ -24,9 +24,27 @@ services:
       - api_gateway_nm:/usr/src/app/node_modules
     depends_on:
       - mongodb
+      - ai-service
     networks:
       - joylog-net
     command: npm run dev --workspace=api-gateway
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: services/ai-service/Dockerfile
+    container_name: joylog_ai_service
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - .:/usr/src/app
+      - ai_service_nm:/usr/src/app/node_modules
+    networks:
+      - joylog-net
+    command: npm run dev --workspace=ai-service
 
   auth-service:
     build:
@@ -78,7 +96,6 @@ services:
       - "5173:5173"
     environment:
       - VITE_API_URL=http://localhost:3000
-      - VITE_GEMINI_API_KEY=${VITE_GEMINI_API_KEY}
     volumes:
       - .:/usr/src/app
       - frontend_nm:/usr/src/app/node_modules
@@ -93,6 +110,7 @@ volumes:
   api_gateway_nm:
   auth_service_nm:
   library_service_nm:
+  ai_service_nm:
   frontend_nm:
 
 networks:

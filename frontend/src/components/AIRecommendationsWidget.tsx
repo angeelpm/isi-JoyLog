@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Sparkles, BookOpen, Search, Loader, Plus } from 'lucide-react';
-import { RawgAPI } from '../services/api';
+import { AiAPI, RawgAPI } from '../services/api';
 
 interface Recommendation {
   title: string;
@@ -16,38 +16,6 @@ interface AIRecommendationsWidgetProps {
     totalCompleted?: number;
   };
   onGameSelect?: (game: object) => void;
-}
-
-const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
-
-async function fetchRecommendations(prompt: string): Promise<Recommendation[]> {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-  if (!apiKey) throw new Error('VITE_GEMINI_API_KEY not set');
-
-
-  const systemPrompt = `You are a video game recommendation AI. ${prompt}
-Return ONLY a valid JSON array (no markdown, no explanation) of exactly 5 game recommendations with this exact structure:
-[{"title":"...","genre":"...","reason":"...","price":"~€X-Y"}]`;
-
-  const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: systemPrompt }] }],
-      generationConfig: { temperature: 0.8, maxOutputTokens: 2048, thinkingConfig: { thinkingBudget: 0 } },
-    }),
-  });
-
-  if (!res.ok) throw new Error(`Gemini error ${res.status}`);
-
-  const data = await res.json();
-  const parts = data.candidates?.[0]?.content?.parts ?? [];
-  const raw = parts.find((p: {text?: string}) => p.text && !p.text.startsWith('<'))?.text
-    ?? parts[parts.length - 1]?.text
-    ?? '';
-  const clean = raw.replace(/```json|```/g, '').trim();
-  return JSON.parse(clean) as Recommendation[];
 }
 
 export const AIRecommendationsWidget = ({ userStats, onGameSelect }: AIRecommendationsWidgetProps) => {
@@ -86,10 +54,10 @@ export const AIRecommendationsWidget = ({ userStats, onGameSelect }: AIRecommend
     setError('');
     setResults([]);
     try {
-      const prompt = `Recommend video games based on this theme or mood: "${themeInput}". Consider price value too.`;
-      setResults(await fetchRecommendations(prompt));
+      const { data } = await AiAPI.getRecommendations({ mode: 'theme', theme: themeInput });
+      setResults(data as Recommendation[]);
     } catch {
-      setError('Could not get recommendations. Check your API key.');
+      setError('Could not get recommendations. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -100,12 +68,10 @@ export const AIRecommendationsWidget = ({ userStats, onGameSelect }: AIRecommend
     setError('');
     setResults([]);
     try {
-      const genres = userStats?.topGenres?.join(', ') || 'action, adventure';
-      const recent = userStats?.recentGames?.join(', ') || 'various games';
-      const prompt = `The user has completed ${userStats?.totalCompleted ?? 0} games. Their favorite genres are: ${genres}. Recently played: ${recent}. Recommend 5 games they would love, considering price value.`;
-      setResults(await fetchRecommendations(prompt));
+      const { data } = await AiAPI.getRecommendations({ mode: 'library', userStats });
+      setResults(data as Recommendation[]);
     } catch {
-      setError('Could not get recommendations. Check your API key.');
+      setError('Could not get recommendations. Please try again later.');
     } finally {
       setLoading(false);
     }

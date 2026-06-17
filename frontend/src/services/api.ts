@@ -49,3 +49,11 @@ export const RawgAPI = {
 export const PriceAPI = {
   getGamePrice: (title: string) => api.get('/api/library/prices', { params: { title } }),
 };
+
+export const AiAPI = {
+  getRecommendations: (payload: {
+    mode: 'theme' | 'library';
+    theme?: string;
+    userStats?: { topGenres?: string[]; recentGames?: string[]; totalCompleted?: number };
+  }) => api.post('/api/ai/recommendations', payload),
+};

@@ -30,6 +30,12 @@ app.use('/api/library', createProxyMiddleware({
     pathRewrite: { '^/api/library': '' }
 }));
 
+app.use('/api/ai', createProxyMiddleware({
+    target: 'http://ai-service:3003',
+    changeOrigin: true,
+    pathRewrite: { '^/api/ai': '' }
+}));
+
 // RAWG API proxy - avoids CORS issues from frontend
 app.use('/api/games', createProxyMiddleware({
     target: 'https://api.rawg.io/api',
