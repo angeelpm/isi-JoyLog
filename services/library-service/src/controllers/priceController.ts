@@ -91,7 +91,7 @@ export const getGamePrices = async (req: Request, res: Response): Promise<void> 
         const pricesRes = await fetch(pricesUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify([{ id: itadGame.id }]),
+            body: JSON.stringify([itadGame.id]),
         });
 
         if (!pricesRes.ok) {
@@ -162,7 +162,7 @@ export const getGamePrices = async (req: Request, res: Response): Promise<void> 
             drm: deal.drm.map((d) => d.name),
             platforms: deal.platforms.map((p) => p.name),
         })),
-        historyLow: priceData.historyLow
+        historyLow: priceData.historyLow?.amount != null
             ? {
                 amount: priceData.historyLow.amount,
                 currency: priceData.historyLow.currency,

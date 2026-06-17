@@ -214,7 +214,7 @@ export const PriceWidget: React.FC<PriceWidgetProps> = ({
           {cheapest.shop}
         </p>
 
-        {historyLow && (
+        {historyLow?.amount != null && (
           <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: 0 }}>
             All-time low:{' '}
             <span style={{ fontFamily: "'DM Mono', monospace" }}>
