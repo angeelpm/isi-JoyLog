@@ -56,4 +56,7 @@ export const SocialAPI = {
   unfollow: (userId: string) => api.delete(`/api/auth/users/${userId}/follow`),
   getFollowers: (userId: string) => api.get(`/api/auth/users/${userId}/followers`),
   getFollowing: (userId: string) => api.get(`/api/auth/users/${userId}/following`),
+  getPublicStats: (userId: string) => api.get(`/api/library/stats/public/${userId}`),
+  likeReview: (gameEntryId: string, reviewLogId: string) => api.post('/api/library/likes', { gameEntryId, reviewLogId }),
+  unlikeReview: (reviewLogId: string) => api.delete(`/api/library/likes/${reviewLogId}`),
 };

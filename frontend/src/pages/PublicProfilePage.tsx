@@ -13,10 +13,22 @@ interface PublicProfile {
   isFollowing: boolean;
 }
 
+interface PublicStats {
+  total: number;
+  playing: number;
+  completed: number;
+  backlog: number;
+  dropped: number;
+  wishlist: number;
+  totalHoursPlayed: number;
+  avgRating: number;
+}
+
 export const PublicProfilePage = () => {
   const { username } = useParams<{ username: string }>();
   const { user: currentUser } = useAuth();
   const [profile, setProfile] = useState<PublicProfile | null>(null);
+  const [stats, setStats] = useState<PublicStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [followBusy, setFollowBusy] = useState(false);
@@ -26,7 +38,11 @@ export const PublicProfilePage = () => {
     setLoading(true);
     setError('');
     SocialAPI.getPublicProfile(username)
-      .then(res => setProfile(res.data))
+      .then(res => {
+        setProfile(res.data);
+        return SocialAPI.getPublicStats(res.data._id);
+      })
+      .then(res => setStats(res.data.stats))
       .catch(() => setError('User not found'))
       .finally(() => setLoading(false));
   }, [username]);
@@ -114,11 +130,37 @@ export const PublicProfilePage = () => {
 
         <div style={{ padding: '2rem' }}>
           {profile.bio ? (
-            <p style={{ color: 'var(--text-primary)', fontSize: '0.9rem', lineHeight: 1.6 }}>{profile.bio}</p>
+            <p style={{ color: 'var(--text-primary)', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '1.5rem' }}>{profile.bio}</p>
           ) : (
-            <p style={{ color: 'var(--text-faint)', fontSize: '0.9rem', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <p style={{ color: 'var(--text-faint)', fontSize: '0.9rem', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '1.5rem' }}>
               <Users size={14} /> No bio yet.
             </p>
+          )}
+
+          {stats && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+              gap: '0.75rem',
+            }}>
+              {[
+                { label: 'Games', value: stats.total },
+                { label: 'Completed', value: stats.completed },
+                { label: 'Hours played', value: stats.totalHoursPlayed },
+                { label: 'Avg rating', value: stats.avgRating ? stats.avgRating.toFixed(1) : '—' },
+              ].map(({ label, value }) => (
+                <div key={label} style={{
+                  background: 'var(--bg-surface-2)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  padding: '0.85rem',
+                  textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 700, fontFamily: "'DM Mono', monospace" }}>{value}</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>

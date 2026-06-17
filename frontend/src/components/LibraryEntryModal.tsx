@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { X } from 'lucide-react';
-import { LibraryAPI, RawgAPI } from '../services/api';
+import { X, Heart } from 'lucide-react';
+import { LibraryAPI, RawgAPI, SocialAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { PriceWidget } from './PriceWidget';
 
@@ -34,6 +34,7 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
   const [gameDetails, setGameDetails] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [communityReviews, setCommunityReviews] = useState<any[]>([]);
+  const [likeBusyId, setLikeBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -91,6 +92,27 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
       alert(game._id ? 'Failed to update game entry' : 'Failed to add game entry');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const toggleLike = async (reviewLogId: string, gameEntryId: string, isLikedByMe: boolean) => {
+    if (!reviewLogId || likeBusyId) return;
+    setLikeBusyId(reviewLogId);
+    try {
+      if (isLikedByMe) {
+        await SocialAPI.unlikeReview(reviewLogId);
+      } else {
+        await SocialAPI.likeReview(gameEntryId, reviewLogId);
+      }
+      setCommunityReviews(prev => prev.map(r =>
+        r.reviewLogId === reviewLogId
+          ? { ...r, isLikedByMe: !isLikedByMe, likeCount: r.likeCount + (isLikedByMe ? -1 : 1) }
+          : r
+      ));
+    } catch (err) {
+      console.error('Failed to toggle like', err);
+    } finally {
+      setLikeBusyId(null);
     }
   };
 
@@ -483,6 +505,24 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
                           {log.rating > 0 && <div style={{ display: 'flex', gap: '2px' }}>{renderStaticStars(log.rating)}</div>}
                         </div>
                         <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.6 }}>{log.text}</p>
+                        {log.reviewLogId && (
+                          <button
+                            onClick={() => toggleLike(log.reviewLogId, log.gameEntryId, log.isLikedByMe)}
+                            disabled={likeBusyId === log.reviewLogId}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '0.3rem',
+                              marginTop: '0.6rem',
+                              background: 'none', border: 'none', cursor: 'pointer',
+                              padding: 0,
+                              color: log.isLikedByMe ? 'var(--accent)' : 'var(--text-muted)',
+                              fontSize: '0.8rem',
+                              opacity: likeBusyId === log.reviewLogId ? 0.6 : 1,
+                            }}
+                          >
+                            <Heart size={14} fill={log.isLikedByMe ? 'currentColor' : 'none'} />
+                            {log.likeCount > 0 ? log.likeCount : ''}
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
