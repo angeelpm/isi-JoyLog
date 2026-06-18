@@ -15,5 +15,6 @@ const LikeSchema: Schema = new Schema({
 });
 
 LikeSchema.index({ likerId: 1, reviewLogId: 1 }, { unique: true });
+LikeSchema.index({ reviewLogId: 1 });
 
 export const Like = mongoose.model<ILike>('Like', LikeSchema);
