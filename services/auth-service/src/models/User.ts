@@ -20,8 +20,8 @@ const UserSchema: Schema = new Schema({
     avatarUrl: { type: String, default: '' },
     bio: { type: String, default: '' },
     favoriteGames: [{ type: String }],
-    followers: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-    following: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    followers: { type: [{ type: Schema.Types.ObjectId, ref: 'User' }], default: [] },
+    following: { type: [{ type: Schema.Types.ObjectId, ref: 'User' }], default: [] }
 }, {
     timestamps: true
 });

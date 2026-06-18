@@ -101,15 +101,19 @@ export const getUserProfile = async (req: AuthRequest, res: Response): Promise<v
             res.status(404).json({ message: 'User not found' });
             return;
         }
+        const followers = user.followers ?? [];
+        const following = user.following ?? [];
+
         const isFollowing = req.userId
-            ? user.followers.some(id => id.toString() === req.userId)
+            ? followers.some(id => id.toString() === req.userId)
             : false;
+
         res.json({
             _id: user._id,
             username: user.username,
             bio: user.bio,
-            followersCount: user.followers.length,
-            followingCount: user.following.length,
+            followersCount: followers.length,
+            followingCount: following.length,
             isFollowing,
         });
     } catch (error) {
