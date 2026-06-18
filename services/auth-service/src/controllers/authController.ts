@@ -139,7 +139,12 @@ export const followUser = async (req: AuthRequest, res: Response): Promise<void>
         }
 
         await User.findByIdAndUpdate(userId, { $addToSet: { followers: currentUserId } });
-        await User.findByIdAndUpdate(currentUserId, { $addToSet: { following: userId } });
+        try {
+            await User.findByIdAndUpdate(currentUserId, { $addToSet: { following: userId } });
+        } catch (err) {
+            await User.findByIdAndUpdate(userId, { $pull: { followers: currentUserId } });
+            throw err;
+        }
 
         res.json({ message: 'Followed successfully' });
     } catch (error) {
@@ -154,7 +159,12 @@ export const unfollowUser = async (req: AuthRequest, res: Response): Promise<voi
         const currentUserId = req.userId!;
 
         await User.findByIdAndUpdate(userId, { $pull: { followers: currentUserId } });
-        await User.findByIdAndUpdate(currentUserId, { $pull: { following: userId } });
+        try {
+            await User.findByIdAndUpdate(currentUserId, { $pull: { following: userId } });
+        } catch (err) {
+            await User.findByIdAndUpdate(userId, { $addToSet: { followers: currentUserId } });
+            throw err;
+        }
 
         res.json({ message: 'Unfollowed successfully' });
     } catch (error) {

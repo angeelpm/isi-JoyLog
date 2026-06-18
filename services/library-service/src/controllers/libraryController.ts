@@ -223,8 +223,9 @@ export const getPublicStats = async (req: Request, res: Response): Promise<void>
             }
         ]);
 
+        const { _id: _, ...rest } = stats ?? {};
         const normalizedStats = stats
-            ? { ...stats, avgRating: stats.avgRating ?? 0 }
+            ? { ...rest, avgRating: stats.avgRating ?? 0 }
             : { total: 0, playing: 0, completed: 0, backlog: 0, dropped: 0, wishlist: 0, totalHoursPlayed: 0, avgRating: 0 };
 
         res.json({ stats: normalizedStats });
@@ -256,8 +257,9 @@ export const getStats = async (req: AuthRequest, res: Response): Promise<void> =
             }
         ]);
 
+        const { _id: _, ...rest } = stats ?? {};
         const normalizedStats = stats
-            ? { ...stats, avgRating: stats.avgRating ?? 0 }
+            ? { ...rest, avgRating: stats.avgRating ?? 0 }
             : { total: 0, playing: 0, completed: 0, backlog: 0, dropped: 0, wishlist: 0, totalHoursPlayed: 0, avgRating: 0 };
 
         res.json({ stats: normalizedStats });
