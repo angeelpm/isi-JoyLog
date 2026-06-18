@@ -50,6 +50,17 @@ export const PriceAPI = {
   getGamePrice: (title: string) => api.get('/api/library/prices', { params: { title } }),
 };
 
+export const SocialAPI = {
+  getPublicProfile: (username: string) => api.get(`/api/auth/users/${username}`),
+  follow: (userId: string) => api.post(`/api/auth/users/${userId}/follow`),
+  unfollow: (userId: string) => api.delete(`/api/auth/users/${userId}/follow`),
+  getFollowers: (userId: string) => api.get(`/api/auth/users/${userId}/followers`),
+  getFollowing: (userId: string) => api.get(`/api/auth/users/${userId}/following`),
+  getPublicStats: (userId: string) => api.get(`/api/library/stats/public/${userId}`),
+  likeReview: (gameEntryId: string, reviewLogId: string) => api.post('/api/library/likes', { gameEntryId, reviewLogId }),
+  unlikeReview: (reviewLogId: string) => api.delete(`/api/library/likes/${reviewLogId}`),
+};
+
 export const AiAPI = {
   getRecommendations: (payload: {
     mode: 'theme' | 'library';
