@@ -68,6 +68,45 @@ export interface ILibraryStats {
   dropped: number;
   wishlist: number;
   totalHoursPlayed: number;
+  avgRating?: number;
+}
+
+// --- Social: Community Review Item ---
+export interface ICommunityReview {
+  username: string;
+  text: string;
+  rating?: number;
+  hoursPlayed?: number;
+  createdAt?: string;
+  isCurrentUser: boolean;
+  reviewLogId?: string;
+  likeCount?: number;
+  isLikedByMe?: boolean;
+}
+
+// --- Social: Like ---
+export interface ILike {
+  id: string;
+  likerId: string;
+  gameEntryId: string;
+  reviewLogId: string;
+  createdAt: string;
+}
+
+// --- Social: Public Profile ---
+export interface IPublicProfile {
+  _id: string;
+  username: string;
+  bio?: string;
+  followersCount: number;
+  followingCount: number;
+  isFollowing: boolean;
+}
+
+// --- Social: Follow Entry ---
+export interface IFollowEntry {
+  _id: string;
+  username: string;
 }
 
 // --- GameEntry input (for create/update) ---
