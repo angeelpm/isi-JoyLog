@@ -59,6 +59,65 @@ export const SocialAPI = {
   getPublicStats: (userId: string) => api.get(`/api/library/stats/public/${userId}`),
   likeReview: (gameEntryId: string, reviewLogId: string) => api.post('/api/library/likes', { gameEntryId, reviewLogId }),
   unlikeReview: (reviewLogId: string) => api.delete(`/api/library/likes/${reviewLogId}`),
+  getCommonGames: (otherUserId: string) => api.get(`/api/library/common/${otherUserId}`),
+};
+
+export interface FavoriteGame {
+  rawgGameId: number | string;
+  title: string;
+  coverImage?: string;
+}
+
+export interface GameList {
+  _id: string;
+  title: string;
+  description?: string;
+  isPublic: boolean;
+  ownerId: string;
+  ownerUsername?: string;
+  collaboratorIds: string[];
+  games: { rawgGameId: number | string; title: string; coverImage?: string }[];
+}
+
+export const ListAPI = {
+  create: (data: { title: string; description?: string; isPublic: boolean }) =>
+    api.post<GameList>('/api/library/lists', data),
+  getMine: () => api.get<{ lists: GameList[] }>('/api/library/lists/mine'),
+  getOne: (listId: string) => api.get<GameList>(`/api/library/lists/${listId}`),
+  update: (listId: string, data: Partial<{ title: string; description: string; isPublic: boolean }>) =>
+    api.put<GameList>(`/api/library/lists/${listId}`, data),
+  remove: (listId: string) => api.delete(`/api/library/lists/${listId}`),
+  addGame: (listId: string, game: { rawgGameId: number | string; title: string; coverImage?: string }) =>
+    api.post(`/api/library/lists/${listId}/games`, game),
+  removeGame: (listId: string, rawgGameId: number | string) =>
+    api.delete(`/api/library/lists/${listId}/games/${rawgGameId}`),
+  addCollaborator: (listId: string, userId: string) =>
+    api.post(`/api/library/lists/${listId}/collaborators`, { userId }),
+  removeCollaborator: (listId: string, userId: string) =>
+    api.delete(`/api/library/lists/${listId}/collaborators/${userId}`),
+};
+
+export interface FeedItem {
+  username: string;
+  rawgGameId: number | string;
+  title: string;
+  coverImage?: string;
+  type: 'review' | 'completed';
+  text?: string;
+  rating?: number;
+  createdAt: string;
+  gameEntryId: string;
+  reviewLogId?: string;
+  likeCount?: number;
+  isLikedByMe?: boolean;
+  commentCount?: number;
+}
+
+export const FeedAPI = {
+  getFeed: (userIds: string[], page = 1) =>
+    api.get<{ items: FeedItem[]; page: number; hasMore: boolean }>('/api/library/feed', {
+      params: { userIds: userIds.join(','), page },
+    }),
 };
 
 export const CommentAPI = {

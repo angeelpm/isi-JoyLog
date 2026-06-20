@@ -1,6 +1,7 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import type { ReactNode } from 'react';
 import { AuthAPI } from '../services/api';
+import type { FavoriteGame } from '../services/api';
 
 interface User {
   id: string;
@@ -8,6 +9,7 @@ interface User {
   email: string;
   avatarUrl?: string;
   bio?: string;
+  favoriteGames?: FavoriteGame[];
 }
 
 interface AuthContextType {

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { UserPlus, UserMinus, Users } from 'lucide-react';
 import { SocialAPI } from '../services/api';
+import type { FavoriteGame } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 interface PublicProfile {
@@ -11,6 +12,13 @@ interface PublicProfile {
   followersCount: number;
   followingCount: number;
   isFollowing: boolean;
+  favoriteGames?: FavoriteGame[];
+}
+
+interface CommonGame {
+  rawgGameId: number | string;
+  title: string;
+  coverImage?: string;
 }
 
 interface PublicStats {
@@ -32,20 +40,27 @@ export const PublicProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [followBusy, setFollowBusy] = useState(false);
+  const [commonGames, setCommonGames] = useState<CommonGame[] | null>(null);
 
   useEffect(() => {
     if (!username) return;
     setLoading(true);
     setError('');
+    setCommonGames(null);
     SocialAPI.getPublicProfile(username)
       .then(res => {
         setProfile(res.data);
+        if (currentUser && currentUser.id !== res.data._id) {
+          SocialAPI.getCommonGames(res.data._id)
+            .then(commonRes => setCommonGames(commonRes.data.commonGames || []))
+            .catch(() => setCommonGames([]));
+        }
         return SocialAPI.getPublicStats(res.data._id);
       })
       .then(res => setStats(res.data.stats))
       .catch(() => setError('User not found'))
       .finally(() => setLoading(false));
-  }, [username]);
+  }, [username, currentUser]);
 
   const toggleFollow = async () => {
     if (!profile || followBusy) return;
@@ -160,6 +175,58 @@ export const PublicProfilePage = () => {
                   <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {profile.favoriteGames && profile.favoriteGames.length > 0 && (
+            <div style={{ marginTop: '1.5rem' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.75rem' }}>Juegos favoritos</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '0.75rem' }}>
+                {profile.favoriteGames.map(fav => (
+                  <div key={fav.rawgGameId}>
+                    <div style={{
+                      aspectRatio: '3/4',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      background: 'var(--bg-surface-2)',
+                      backgroundImage: fav.coverImage ? `url(${fav.coverImage})` : undefined,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    }} />
+                    <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.3rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {fav.title}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!isOwnProfile && commonGames !== null && (
+            <div style={{ marginTop: '1.5rem' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.75rem' }}>Juegos en común</h3>
+              {commonGames.length > 0 ? (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '0.75rem' }}>
+                  {commonGames.map(game => (
+                    <div key={game.rawgGameId}>
+                      <div style={{
+                        aspectRatio: '3/4',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        background: 'var(--bg-surface-2)',
+                        backgroundImage: game.coverImage ? `url(${game.coverImage})` : undefined,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                      }} />
+                      <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.3rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {game.title}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ color: 'var(--text-faint)', fontSize: '0.85rem' }}>No tenéis juegos en común todavía.</p>
+              )}
             </div>
           )}
         </div>

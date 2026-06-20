@@ -9,6 +9,10 @@ import { SearchPage } from './pages/SearchPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { PublicProfilePage } from './pages/PublicProfilePage';
 import { LibraryPage } from './pages/LibraryPage';
+import { FeedPage } from './pages/FeedPage';
+import { DiaryPage } from './pages/DiaryPage';
+import { ListsPage } from './pages/ListsPage';
+import { ListDetailPage } from './pages/ListDetailPage';
 
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -33,6 +37,10 @@ function AppRoutes() {
           <Route path="/library" element={<LibraryPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/u/:username" element={<PublicProfilePage />} />
+          <Route path="/feed" element={<FeedPage />} />
+          <Route path="/diary" element={<DiaryPage />} />
+          <Route path="/lists" element={<ListsPage />} />
+          <Route path="/lists/:listId" element={<ListDetailPage />} />
         </Route>
       </Routes>
     </>
