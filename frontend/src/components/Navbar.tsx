@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Gamepad2, Search, LogOut, LayoutDashboard, BookOpen } from 'lucide-react';
+import { Gamepad2, Search, LogOut, LayoutDashboard, BookOpen, Rss } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './Navbar.css';
 
@@ -37,6 +37,10 @@ export const Navbar = () => {
               <Link to="/search" className={`nav-link ${isActive('/search') ? 'active' : ''}`}>
                 <Search size={15} />
                 <span>Search</span>
+              </Link>
+              <Link to="/feed" className={`nav-link ${isActive('/feed') ? 'active' : ''}`}>
+                <Rss size={15} />
+                <span>Feed</span>
               </Link>
               <div className="nav-user-menu">
                 <Link to="/profile" className={`nav-link profile-link ${isActive('/profile') ? 'active' : ''}`}>

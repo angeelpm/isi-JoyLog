@@ -61,6 +61,29 @@ export const SocialAPI = {
   unlikeReview: (reviewLogId: string) => api.delete(`/api/library/likes/${reviewLogId}`),
 };
 
+export interface FeedItem {
+  username: string;
+  rawgGameId: number | string;
+  title: string;
+  coverImage?: string;
+  type: 'review' | 'completed';
+  text?: string;
+  rating?: number;
+  createdAt: string;
+  gameEntryId: string;
+  reviewLogId?: string;
+  likeCount?: number;
+  isLikedByMe?: boolean;
+  commentCount?: number;
+}
+
+export const FeedAPI = {
+  getFeed: (userIds: string[], page = 1) =>
+    api.get<{ items: FeedItem[]; page: number; hasMore: boolean }>('/api/library/feed', {
+      params: { userIds: userIds.join(','), page },
+    }),
+};
+
 export const AiAPI = {
   getRecommendations: (payload: {
     mode: 'theme' | 'library';
