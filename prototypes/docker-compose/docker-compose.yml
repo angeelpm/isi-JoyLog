@@ -1,0 +1,20 @@
+services:
+  service-a:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    networks:
+      - proto-net
+
+  service-b:
+    image: nginx:alpine
+    ports:
+      - "8081:80"
+    networks:
+      - proto-net
+    depends_on:
+      - service-a
+
+networks:
+  proto-net:
+    driver: bridge
