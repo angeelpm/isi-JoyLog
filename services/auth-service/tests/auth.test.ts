@@ -269,4 +269,70 @@ describe('Auth Service Integration Tests', () => {
       expect(res.status).toBe(401);
     });
   });
+
+  describe('PUT /me - updateProfile with enriched favoriteGames', () => {
+    it('should save favoriteGames as objects and return them', async () => {
+      const { token } = await registerUser('favuser', 'fav@example.com');
+
+      const favoriteGames = [
+        { rawgGameId: '123', title: 'Zelda', coverImage: 'zelda.jpg' },
+        { rawgGameId: '456', title: 'Metroid', coverImage: 'metroid.jpg' }
+      ];
+
+      const res = await request(app)
+        .put('/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ favoriteGames });
+
+      expect(res.status).toBe(200);
+      expect(res.body.user.favoriteGames).toHaveLength(2);
+      expect(res.body.user.favoriteGames[0].rawgGameId).toBe('123');
+      expect(res.body.user.favoriteGames[0].title).toBe('Zelda');
+      expect(res.body.user.favoriteGames[1].rawgGameId).toBe('456');
+    });
+
+    it('should persist favoriteGames across /me reads', async () => {
+      const { token } = await registerUser('favpersist', 'favpersist@example.com');
+
+      await request(app)
+        .put('/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ favoriteGames: [{ rawgGameId: '999', title: 'Halo', coverImage: '' }] });
+
+      const res = await request(app)
+        .get('/me')
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.user.favoriteGames).toHaveLength(1);
+      expect(res.body.user.favoriteGames[0].rawgGameId).toBe('999');
+    });
+  });
+
+  describe('GET /users/:username - favoriteGames in public profile', () => {
+    it('should include favoriteGames in public profile response', async () => {
+      const { token } = await registerUser('pubfavuser', 'pubfav@example.com');
+
+      await request(app)
+        .put('/me')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ favoriteGames: [{ rawgGameId: '777', title: 'Doom', coverImage: 'doom.jpg' }] });
+
+      const res = await request(app).get('/users/pubfavuser');
+
+      expect(res.status).toBe(200);
+      expect(res.body.favoriteGames).toBeDefined();
+      expect(res.body.favoriteGames).toHaveLength(1);
+      expect(res.body.favoriteGames[0].title).toBe('Doom');
+    });
+
+    it('should return empty favoriteGames array when user has none', async () => {
+      await registerUser('nofavuser', 'nofav@example.com');
+
+      const res = await request(app).get('/users/nofavuser');
+
+      expect(res.status).toBe(200);
+      expect(res.body.favoriteGames).toEqual([]);
+    });
+  });
 });

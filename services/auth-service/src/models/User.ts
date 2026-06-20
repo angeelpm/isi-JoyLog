@@ -1,12 +1,18 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
+export interface IFavoriteGame {
+    rawgGameId: string;
+    title: string;
+    coverImage: string;
+}
+
 export interface IUser extends Document {
     username: string;
     email: string;
     passwordHash: string;
     avatarUrl?: string;
     bio?: string;
-    favoriteGames?: string[];
+    favoriteGames?: IFavoriteGame[];
     followers: mongoose.Types.ObjectId[];
     following: mongoose.Types.ObjectId[];
     createdAt?: Date;
@@ -19,7 +25,11 @@ const UserSchema: Schema = new Schema({
     passwordHash: { type: String, required: true },
     avatarUrl: { type: String, default: '' },
     bio: { type: String, default: '' },
-    favoriteGames: [{ type: String }],
+    favoriteGames: [{
+        rawgGameId: { type: String, required: true },
+        title: { type: String, required: true },
+        coverImage: { type: String, default: '' }
+    }],
     followers: { type: [{ type: Schema.Types.ObjectId, ref: 'User' }], default: [] },
     following: { type: [{ type: Schema.Types.ObjectId, ref: 'User' }], default: [] }
 }, {

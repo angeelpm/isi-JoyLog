@@ -353,6 +353,137 @@ export const getComments = async (req: Request, res: Response): Promise<void> =>
     }
 };
 
+// GET /feed - Activity feed for a list of followed userIds
+export const getActivityFeed = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userIdsParam = req.query.userIds as string;
+        const page = Math.max(1, parseInt(req.query.page as string) || 1);
+        const PAGE_SIZE = 20;
+
+        if (!userIdsParam || userIdsParam.trim() === '') {
+            res.json({ items: [], page: 1, hasMore: false });
+            return;
+        }
+
+        const userIds = userIdsParam.split(',').map(id => id.trim()).filter(Boolean);
+        if (userIds.length === 0) {
+            res.json({ items: [], page: 1, hasMore: false });
+            return;
+        }
+
+        const entries = await GameEntry.find({ userId: { $in: userIds } });
+
+        const items: any[] = [];
+        entries.forEach(entry => {
+            const base = {
+                username: entry.username || 'Anonymous',
+                rawgGameId: entry.rawgGameId,
+                title: entry.title,
+                coverImage: entry.coverImage,
+                gameEntryId: entry._id.toString(),
+            };
+
+            if (entry.reviewLogs && entry.reviewLogs.length > 0) {
+                entry.reviewLogs.forEach(log => {
+                    items.push({
+                        ...base,
+                        type: 'review',
+                        text: log.text,
+                        rating: log.rating,
+                        createdAt: log.createdAt,
+                        reviewLogId: (log as any)._id?.toString(),
+                        likeCount: 0,
+                        isLikedByMe: false,
+                        commentCount: 0,
+                    });
+                });
+            } else if (entry.status === 'completed') {
+                items.push({
+                    ...base,
+                    type: 'completed',
+                    createdAt: entry.completedAt || (entry as any).updatedAt,
+                });
+            }
+        });
+
+        items.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+        const total = items.length;
+        const start = (page - 1) * PAGE_SIZE;
+        const paginatedItems = items.slice(start, start + PAGE_SIZE);
+        const hasMore = start + PAGE_SIZE < total;
+
+        const reviewLogIds = paginatedItems
+            .filter(i => i.type === 'review' && i.reviewLogId)
+            .map(i => i.reviewLogId);
+
+        if (reviewLogIds.length > 0) {
+            const [likeCounts, commentCounts] = await Promise.all([
+                Like.aggregate([
+                    { $match: { reviewLogId: { $in: reviewLogIds } } },
+                    { $group: { _id: '$reviewLogId', count: { $sum: 1 } } }
+                ]),
+                Comment.aggregate([
+                    { $match: { reviewLogId: { $in: reviewLogIds } } },
+                    { $group: { _id: '$reviewLogId', count: { $sum: 1 } } }
+                ])
+            ]);
+
+            const likeCountMap = new Map(likeCounts.map((l: any) => [l._id, l.count]));
+            const commentCountMap = new Map(commentCounts.map((c: any) => [c._id, c.count]));
+
+            let likedSet = new Set<string>();
+            if (req.userId) {
+                const myLikes = await Like.find({
+                    likerId: req.userId,
+                    reviewLogId: { $in: reviewLogIds }
+                }).select('reviewLogId');
+                likedSet = new Set(myLikes.map(l => l.reviewLogId));
+            }
+
+            paginatedItems.forEach(item => {
+                if (item.type === 'review' && item.reviewLogId) {
+                    item.likeCount = likeCountMap.get(item.reviewLogId) ?? 0;
+                    item.isLikedByMe = likedSet.has(item.reviewLogId);
+                    item.commentCount = commentCountMap.get(item.reviewLogId) ?? 0;
+                }
+            });
+        }
+
+        res.json({ items: paginatedItems, page, hasMore });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching activity feed' });
+    }
+};
+
+// GET /common/:otherUserId - Games in common between current user and another user
+export const getCommonGames = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { otherUserId } = req.params;
+
+        if (otherUserId === req.userId) {
+            res.status(400).json({ message: 'Cannot compare with yourself' });
+            return;
+        }
+
+        const [myEntries, theirEntries] = await Promise.all([
+            GameEntry.find({ userId: req.userId }).select('rawgGameId title coverImage'),
+            GameEntry.find({ userId: otherUserId }).select('rawgGameId title coverImage')
+        ]);
+
+        const theirGameIds = new Set(theirEntries.map(e => e.rawgGameId));
+        const commonGames = myEntries
+            .filter(e => theirGameIds.has(e.rawgGameId))
+            .map(e => ({ rawgGameId: e.rawgGameId, title: e.title, coverImage: e.coverImage }));
+
+        res.json({ commonGames });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching common games' });
+    }
+};
+
 // DELETE /comments/:commentId - Delete own comment
 export const deleteComment = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
