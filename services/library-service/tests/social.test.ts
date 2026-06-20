@@ -78,7 +78,7 @@ describe('Community Reviews — public access', () => {
     expect(typeof review.isLikedByMe).toBe('boolean');
   });
 
-  it('should exclude the authenticated user\'s own reviews from results', async () => {
+  it('should include the authenticated user\'s own reviews, flagged with isCurrentUser', async () => {
     const authorId = new mongoose.Types.ObjectId().toString();
     const otherUserId = new mongoose.Types.ObjectId().toString();
     const authorToken = generateToken(authorId, 'author');
@@ -108,15 +108,20 @@ describe('Community Reviews — public access', () => {
         reviewLogs: [{ text: 'Other review', rating: 6 }]
       });
 
-    // Author queries — their own review is excluded (reviews from other users only)
+    // Author queries — sees both their own review and the other user's
     const res = await request(app)
       .get(`/reviews/${rawgGameId}`)
       .set('Authorization', `Bearer ${authorToken}`);
 
     expect(res.status).toBe(200);
-    // Author sees other's review, not their own
-    expect(res.body.reviews.every((r: any) => r.isCurrentUser === false)).toBe(true);
-    expect(res.body.reviews.some((r: any) => r.text === 'Other review')).toBe(true);
+
+    const ownReview = res.body.reviews.find((r: any) => r.text === 'My review');
+    const otherReview = res.body.reviews.find((r: any) => r.text === 'Other review');
+
+    expect(ownReview).toBeDefined();
+    expect(ownReview.isCurrentUser).toBe(true);
+    expect(otherReview).toBeDefined();
+    expect(otherReview.isCurrentUser).toBe(false);
   });
 
   it('should return empty reviews array when no entries exist', async () => {

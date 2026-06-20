@@ -107,7 +107,7 @@ describe('LibraryEntryModal — community comments', () => {
   it('adds a new comment to the list', async () => {
     vi.mocked(CommentAPI.getComments).mockResolvedValue({ data: { comments: [] } } as any);
     vi.mocked(CommentAPI.addComment).mockResolvedValue({
-      data: { _id: 'c2', commenterId: 'me', username: 'me', text: 'My new comment' },
+      data: { comment: { _id: 'c2', commenterId: 'me', username: 'me', text: 'My new comment' } },
     } as any);
 
     renderModal();
