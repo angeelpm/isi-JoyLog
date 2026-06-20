@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Gamepad2, Search, LogOut, LayoutDashboard, BookOpen, Rss } from 'lucide-react';
+import { Gamepad2, Search, LogOut, LayoutDashboard, BookOpen, Rss, CalendarDays, ListChecks } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import './Navbar.css';
 
@@ -41,6 +41,14 @@ export const Navbar = () => {
               <Link to="/feed" className={`nav-link ${isActive('/feed') ? 'active' : ''}`}>
                 <Rss size={15} />
                 <span>Feed</span>
+              </Link>
+              <Link to="/diary" className={`nav-link ${isActive('/diary') ? 'active' : ''}`}>
+                <CalendarDays size={15} />
+                <span>Diary</span>
+              </Link>
+              <Link to="/lists" className={`nav-link ${isActive('/lists') ? 'active' : ''}`}>
+                <ListChecks size={15} />
+                <span>Lists</span>
               </Link>
               <div className="nav-user-menu">
                 <Link to="/profile" className={`nav-link profile-link ${isActive('/profile') ? 'active' : ''}`}>
