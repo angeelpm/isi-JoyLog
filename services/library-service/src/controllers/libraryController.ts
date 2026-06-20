@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { GameEntry } from '../models/GameEntry';
 import { Like } from '../models/Like';
+import { Comment } from '../models/Comment';
 import { AuthRequest } from '../middleware/authMiddleware';
 
 // GET / - Get user's library (optional status filter)
@@ -148,6 +149,7 @@ export const getGameReviews = async (req: AuthRequest, res: Response): Promise<v
                         reviewLogId: (log as any)._id?.toString(),
                         likeCount: 0,
                         isLikedByMe: false,
+                        commentCount: 0,
                     });
                 });
             } else if (entry.review) {
@@ -162,6 +164,7 @@ export const getGameReviews = async (req: AuthRequest, res: Response): Promise<v
                     reviewLogId: undefined,
                     likeCount: 0,
                     isLikedByMe: false,
+                    commentCount: 0,
                 });
             }
         });
@@ -174,11 +177,19 @@ export const getGameReviews = async (req: AuthRequest, res: Response): Promise<v
             .map(r => r.reviewLogId);
 
         if (reviewLogIds.length > 0) {
-            const likeCounts = await Like.aggregate([
-                { $match: { reviewLogId: { $in: reviewLogIds } } },
-                { $group: { _id: '$reviewLogId', count: { $sum: 1 } } }
+            const [likeCounts, commentCounts] = await Promise.all([
+                Like.aggregate([
+                    { $match: { reviewLogId: { $in: reviewLogIds } } },
+                    { $group: { _id: '$reviewLogId', count: { $sum: 1 } } }
+                ]),
+                Comment.aggregate([
+                    { $match: { reviewLogId: { $in: reviewLogIds } } },
+                    { $group: { _id: '$reviewLogId', count: { $sum: 1 } } }
+                ])
             ]);
+
             const likeCountMap = new Map(likeCounts.map((l: any) => [l._id, l.count]));
+            const commentCountMap = new Map(commentCounts.map((c: any) => [c._id, c.count]));
 
             let likedSet = new Set<string>();
             if (req.userId) {
@@ -193,6 +204,7 @@ export const getGameReviews = async (req: AuthRequest, res: Response): Promise<v
                 ...r,
                 likeCount: r.reviewLogId ? (likeCountMap.get(r.reviewLogId) ?? 0) : 0,
                 isLikedByMe: r.reviewLogId ? likedSet.has(r.reviewLogId) : false,
+                commentCount: r.reviewLogId ? (commentCountMap.get(r.reviewLogId) ?? 0) : 0,
             }));
         }
 
@@ -308,5 +320,59 @@ export const unlikeReviewLog = async (req: AuthRequest, res: Response): Promise<
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error unliking review' });
+    }
+};
+
+// POST /comments - Create a comment on a reviewLog
+export const createComment = async (req: AuthRequest, res: Response): Promise<void> => {
+    const { gameEntryId, reviewLogId, text } = req.body;
+
+    if (!gameEntryId || !reviewLogId || !text) {
+        res.status(400).json({ message: 'gameEntryId, reviewLogId, and text are required' });
+        return;
+    }
+
+    try {
+        const comment = await Comment.create({ commenterId: req.userId, gameEntryId, reviewLogId, text });
+        res.status(201).json({ comment });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error creating comment' });
+    }
+};
+
+// GET /comments/:reviewLogId - List comments for a reviewLog (public)
+export const getComments = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { reviewLogId } = req.params;
+        const comments = await Comment.find({ reviewLogId }).sort({ createdAt: 1 });
+        res.json({ comments });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching comments' });
+    }
+};
+
+// DELETE /comments/:commentId - Delete own comment
+export const deleteComment = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { commentId } = req.params;
+        const comment = await Comment.findById(commentId);
+
+        if (!comment) {
+            res.status(404).json({ message: 'Comment not found' });
+            return;
+        }
+
+        if (comment.commenterId !== req.userId) {
+            res.status(403).json({ message: 'Not authorized to delete this comment' });
+            return;
+        }
+
+        await comment.deleteOne();
+        res.json({ message: 'Comment deleted' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error deleting comment' });
     }
 };

@@ -9,7 +9,10 @@ import {
     getGameReviews,
     getPublicStats,
     likeReviewLog,
-    unlikeReviewLog
+    unlikeReviewLog,
+    createComment,
+    getComments,
+    deleteComment
 } from '../controllers/libraryController';
 import { getGamePrices } from '../controllers/priceController';
 
@@ -19,6 +22,7 @@ const router = Router();
 router.get('/prices', getGamePrices);
 router.get('/reviews/:rawgGameId', optionalAuthMiddleware, getGameReviews);
 router.get('/stats/public/:userId', getPublicStats);
+router.get('/comments/:reviewLogId', getComments);
 
 // All routes below require authentication
 router.use(authMiddleware);
@@ -30,5 +34,7 @@ router.put('/:id', updateGame);
 router.delete('/:id', deleteGame);
 router.post('/likes', likeReviewLog);
 router.delete('/likes/:reviewLogId', unlikeReviewLog);
+router.post('/comments', createComment);
+router.delete('/comments/:commentId', deleteComment);
 
 export default router;
