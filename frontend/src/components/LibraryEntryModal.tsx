@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { X, Heart } from 'lucide-react';
-import { LibraryAPI, RawgAPI, SocialAPI } from '../services/api';
+import { X, Heart, MessageCircle, Trash2 } from 'lucide-react';
+import { LibraryAPI, RawgAPI, SocialAPI, CommentAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { PriceWidget } from './PriceWidget';
 
@@ -35,6 +35,11 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [communityReviews, setCommunityReviews] = useState<any[]>([]);
   const [likeBusyId, setLikeBusyId] = useState<string | null>(null);
+  const [expandedComments, setExpandedComments] = useState<string | null>(null);
+  const [commentsByReviewLog, setCommentsByReviewLog] = useState<Record<string, any[]>>({});
+  const [loadingComments, setLoadingComments] = useState<string | null>(null);
+  const [newCommentText, setNewCommentText] = useState('');
+  const [commentBusy, setCommentBusy] = useState(false);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -113,6 +118,66 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
       console.error('Failed to toggle like', err);
     } finally {
       setLikeBusyId(null);
+    }
+  };
+
+  const toggleCommentsSection = async (reviewLogId: string) => {
+    if (expandedComments === reviewLogId) {
+      setExpandedComments(null);
+      return;
+    }
+    setExpandedComments(reviewLogId);
+    setNewCommentText('');
+    if (!commentsByReviewLog[reviewLogId]) {
+      setLoadingComments(reviewLogId);
+      try {
+        const { data } = await CommentAPI.getComments(reviewLogId);
+        setCommentsByReviewLog(prev => ({ ...prev, [reviewLogId]: data.comments || [] }));
+      } catch (err) {
+        console.error('Failed to fetch comments', err);
+        setCommentsByReviewLog(prev => ({ ...prev, [reviewLogId]: [] }));
+      } finally {
+        setLoadingComments(null);
+      }
+    }
+  };
+
+  const handleAddComment = async (gameEntryId: string, reviewLogId: string) => {
+    if (!newCommentText.trim() || commentBusy) return;
+    setCommentBusy(true);
+    try {
+      const { data } = await CommentAPI.addComment(gameEntryId, reviewLogId, newCommentText.trim());
+      setCommentsByReviewLog(prev => ({
+        ...prev,
+        [reviewLogId]: [...(prev[reviewLogId] || []), data],
+      }));
+      setCommunityReviews(prev => prev.map(r =>
+        r.reviewLogId === reviewLogId
+          ? { ...r, commentCount: (r.commentCount || 0) + 1 }
+          : r
+      ));
+      setNewCommentText('');
+    } catch (err) {
+      console.error('Failed to add comment', err);
+    } finally {
+      setCommentBusy(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string, reviewLogId: string) => {
+    try {
+      await CommentAPI.deleteComment(commentId);
+      setCommentsByReviewLog(prev => ({
+        ...prev,
+        [reviewLogId]: (prev[reviewLogId] || []).filter(c => c._id !== commentId),
+      }));
+      setCommunityReviews(prev => prev.map(r =>
+        r.reviewLogId === reviewLogId
+          ? { ...r, commentCount: Math.max(0, (r.commentCount || 0) - 1) }
+          : r
+      ));
+    } catch (err) {
+      console.error('Failed to delete comment', err);
     }
   };
 
@@ -506,22 +571,91 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
                         </div>
                         <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.6 }}>{log.text}</p>
                         {log.reviewLogId && (
-                          <button
-                            onClick={() => toggleLike(log.reviewLogId, log.gameEntryId, log.isLikedByMe)}
-                            disabled={likeBusyId === log.reviewLogId}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: '0.3rem',
-                              marginTop: '0.6rem',
-                              background: 'none', border: 'none', cursor: 'pointer',
-                              padding: 0,
-                              color: log.isLikedByMe ? 'var(--accent)' : 'var(--text-muted)',
-                              fontSize: '0.8rem',
-                              opacity: likeBusyId === log.reviewLogId ? 0.6 : 1,
-                            }}
-                          >
-                            <Heart size={14} fill={log.isLikedByMe ? 'currentColor' : 'none'} />
-                            {log.likeCount > 0 ? log.likeCount : ''}
-                          </button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.6rem' }}>
+                            <button
+                              onClick={() => toggleLike(log.reviewLogId, log.gameEntryId, log.isLikedByMe)}
+                              disabled={likeBusyId === log.reviewLogId}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '0.3rem',
+                                background: 'none', border: 'none', cursor: 'pointer',
+                                padding: 0,
+                                color: log.isLikedByMe ? 'var(--accent)' : 'var(--text-muted)',
+                                fontSize: '0.8rem',
+                                opacity: likeBusyId === log.reviewLogId ? 0.6 : 1,
+                              }}
+                            >
+                              <Heart size={14} fill={log.isLikedByMe ? 'currentColor' : 'none'} />
+                              {log.likeCount > 0 ? log.likeCount : ''}
+                            </button>
+                            <button
+                              onClick={() => toggleCommentsSection(log.reviewLogId)}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '0.3rem',
+                                background: 'none', border: 'none', cursor: 'pointer',
+                                padding: 0,
+                                color: expandedComments === log.reviewLogId ? 'var(--accent-violet)' : 'var(--text-muted)',
+                                fontSize: '0.8rem',
+                              }}
+                            >
+                              <MessageCircle size={14} />
+                              {log.commentCount > 0 ? log.commentCount : ''}
+                            </button>
+                          </div>
+                        )}
+
+                        {log.reviewLogId && expandedComments === log.reviewLogId && (
+                          <div style={{
+                            marginTop: '0.75rem',
+                            paddingTop: '0.75rem',
+                            borderTop: '1px solid var(--border)',
+                            display: 'flex', flexDirection: 'column', gap: '0.6rem',
+                          }}>
+                            {loadingComments === log.reviewLogId ? (
+                              <span style={{ fontSize: '0.78rem', color: 'var(--text-faint)', fontStyle: 'italic' }}>Loading comments…</span>
+                            ) : (
+                              (commentsByReviewLog[log.reviewLogId] || []).map((comment: any) => (
+                                <div key={comment._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                                  <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>
+                                    <span style={{ fontWeight: 700, color: 'var(--accent-violet)' }}>
+                                      {comment.username || 'Anonymous'}
+                                    </span>{' '}
+                                    <span style={{ color: 'var(--text-primary)' }}>{comment.text}</span>
+                                  </div>
+                                  {comment.commenterId === user?.id && (
+                                    <button
+                                      onClick={() => handleDeleteComment(comment._id, log.reviewLogId)}
+                                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', flexShrink: 0 }}
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  )}
+                                </div>
+                              ))
+                            )}
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <input
+                                type="text"
+                                value={newCommentText}
+                                onChange={(e) => setNewCommentText(e.target.value)}
+                                placeholder="Write a comment…"
+                                style={{ flex: 1, fontSize: '0.82rem', padding: '0.45rem 0.7rem' }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && log.gameEntryId) {
+                                    handleAddComment(log.gameEntryId, log.reviewLogId);
+                                  }
+                                }}
+                              />
+                              <button
+                                type="button"
+                                disabled={commentBusy || !newCommentText.trim()}
+                                onClick={() => handleAddComment(log.gameEntryId, log.reviewLogId)}
+                                className="btn-secondary"
+                                style={{ padding: '0.4rem 0.8rem', fontSize: '0.78rem', flexShrink: 0 }}
+                              >
+                                Send
+                              </button>
+                            </div>
+                          </div>
                         )}
                       </div>
                     ))}

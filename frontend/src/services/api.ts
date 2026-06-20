@@ -61,6 +61,13 @@ export const SocialAPI = {
   unlikeReview: (reviewLogId: string) => api.delete(`/api/library/likes/${reviewLogId}`),
 };
 
+export const CommentAPI = {
+  getComments: (reviewLogId: string) => api.get(`/api/library/comments/${reviewLogId}`),
+  addComment: (gameEntryId: string, reviewLogId: string, text: string) =>
+    api.post('/api/library/comments', { gameEntryId, reviewLogId, text }),
+  deleteComment: (commentId: string) => api.delete(`/api/library/comments/${commentId}`),
+};
+
 export const AiAPI = {
   getRecommendations: (payload: {
     mode: 'theme' | 'library';
