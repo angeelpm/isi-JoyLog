@@ -112,6 +112,8 @@ export const getUserProfile = async (req: AuthRequest, res: Response): Promise<v
             _id: user._id,
             username: user.username,
             bio: user.bio,
+            avatarUrl: user.avatarUrl,
+            favoriteGames: user.favoriteGames ?? [],
             followersCount: followers.length,
             followingCount: following.length,
             isFollowing,
