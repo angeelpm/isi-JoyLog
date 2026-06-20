@@ -122,9 +122,11 @@ export const getGameReviews = async (req: AuthRequest, res: Response): Promise<v
     try {
         const { rawgGameId } = req.params;
 
+        // Return all reviews for this game, including the requester's own.
+        // Own reviews are flagged with isCurrentUser so the client can render
+        // them in a separate section (and still show their comment threads).
         const entries = await GameEntry.find({
             rawgGameId,
-            userId: { $ne: req.userId },
             $or: [
                 { 'reviewLogs.0': { $exists: true } },
                 { review: { $ne: '', $exists: true } }
@@ -333,7 +335,7 @@ export const createComment = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     try {
-        const comment = await Comment.create({ commenterId: req.userId, gameEntryId, reviewLogId, text });
+        const comment = await Comment.create({ commenterId: req.userId, username: req.username, gameEntryId, reviewLogId, text });
         res.status(201).json({ comment });
     } catch (error) {
         console.error(error);
