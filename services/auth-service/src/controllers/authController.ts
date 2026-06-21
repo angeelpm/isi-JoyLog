@@ -124,6 +124,27 @@ export const getUserProfile = async (req: AuthRequest, res: Response): Promise<v
     }
 };
 
+export const searchUsers = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const q = (req.query.q as string || '').trim();
+        if (!q) {
+            res.json({ users: [] });
+            return;
+        }
+        const users = await User.find({ username: { $regex: q, $options: 'i' } })
+            .select('_id username avatarUrl')
+            .limit(10);
+        res.json({
+            users: users
+                .filter(u => u._id.toString() !== req.userId)
+                .map(u => ({ _id: u._id, username: u.username, avatarUrl: u.avatarUrl }))
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error searching users' });
+    }
+};
+
 export const followUser = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { userId } = req.params;

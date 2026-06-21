@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { UserPlus, UserMinus, Users } from 'lucide-react';
-import { SocialAPI } from '../services/api';
-import type { FavoriteGame } from '../services/api';
+import { UserPlus, UserMinus, Users, Globe } from 'lucide-react';
+import { SocialAPI, ListAPI } from '../services/api';
+import type { FavoriteGame, GameList } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 interface PublicProfile {
@@ -41,12 +41,14 @@ export const PublicProfilePage = () => {
   const [error, setError] = useState('');
   const [followBusy, setFollowBusy] = useState(false);
   const [commonGames, setCommonGames] = useState<CommonGame[] | null>(null);
+  const [publicLists, setPublicLists] = useState<GameList[]>([]);
 
   useEffect(() => {
     if (!username) return;
     setLoading(true);
     setError('');
     setCommonGames(null);
+    setPublicLists([]);
     SocialAPI.getPublicProfile(username)
       .then(res => {
         setProfile(res.data);
@@ -55,6 +57,9 @@ export const PublicProfilePage = () => {
             .then(commonRes => setCommonGames(commonRes.data.commonGames || []))
             .catch(() => setCommonGames([]));
         }
+        ListAPI.getByUser(res.data._id)
+          .then(listsRes => setPublicLists(listsRes.data.lists || []))
+          .catch(() => setPublicLists([]));
         return SocialAPI.getPublicStats(res.data._id);
       })
       .then(res => setStats(res.data.stats))
@@ -183,7 +188,7 @@ export const PublicProfilePage = () => {
               <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.75rem' }}>Juegos favoritos</h3>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '0.75rem' }}>
                 {profile.favoriteGames.map(fav => (
-                  <div key={fav.rawgGameId}>
+                  <Link key={fav.rawgGameId} to={`/games/${fav.rawgGameId}`} style={{ color: 'inherit', textDecoration: 'none' }}>
                     <div style={{
                       aspectRatio: '3/4',
                       borderRadius: '8px',
@@ -196,7 +201,7 @@ export const PublicProfilePage = () => {
                     <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.3rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {fav.title}
                     </p>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -208,7 +213,7 @@ export const PublicProfilePage = () => {
               {commonGames.length > 0 ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))', gap: '0.75rem' }}>
                   {commonGames.map(game => (
-                    <div key={game.rawgGameId}>
+                    <Link key={game.rawgGameId} to={`/games/${game.rawgGameId}`} style={{ color: 'inherit', textDecoration: 'none' }}>
                       <div style={{
                         aspectRatio: '3/4',
                         borderRadius: '8px',
@@ -221,12 +226,40 @@ export const PublicProfilePage = () => {
                       <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.3rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {game.title}
                       </p>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               ) : (
                 <p style={{ color: 'var(--text-faint)', fontSize: '0.85rem' }}>No tenéis juegos en común todavía.</p>
               )}
+            </div>
+          )}
+
+          {publicLists.length > 0 && (
+            <div style={{ marginTop: '1.5rem' }}>
+              <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.75rem' }}>Listas públicas</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {publicLists.map(list => (
+                  <Link
+                    key={list._id}
+                    to={`/lists/${list._id}`}
+                    style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem',
+                      background: 'var(--bg-surface-2)', border: '1px solid var(--border)',
+                      borderRadius: '8px', padding: '0.6rem 0.9rem',
+                      textDecoration: 'none', color: 'inherit',
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 600 }}>
+                      <Globe size={13} color="var(--text-muted)" />
+                      {list.title}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>
+                      {list.games?.length || 0} {list.games?.length === 1 ? 'juego' : 'juegos'}
+                    </span>
+                  </Link>
+                ))}
+              </div>
             </div>
           )}
         </div>

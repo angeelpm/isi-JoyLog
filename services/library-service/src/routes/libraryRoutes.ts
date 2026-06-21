@@ -20,6 +20,7 @@ import { getGamePrices } from '../controllers/priceController';
 import {
     createGameList,
     getMineGameLists,
+    getUserGameLists,
     getGameList,
     updateGameList,
     addGameToList,
@@ -37,9 +38,9 @@ router.get('/reviews/:rawgGameId', optionalAuthMiddleware, getGameReviews);
 router.get('/stats/public/:userId', getPublicStats);
 router.get('/comments/:reviewLogId', getComments);
 
-// List routes: /mine needs auth inline; /:listId has optional auth
-// Order matters: /mine must be defined before /:listId
+// List routes: /mine and /user/:userId must be defined before /:listId (order matters)
 router.get('/lists/mine', authMiddleware, getMineGameLists);
+router.get('/lists/user/:userId', getUserGameLists);
 router.get('/lists/:listId', optionalAuthMiddleware, getGameList);
 
 // All routes below require authentication

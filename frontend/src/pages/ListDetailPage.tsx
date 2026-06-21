@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Trash2, Search, UserMinus, Lock, Globe } from 'lucide-react';
-import { ListAPI, RawgAPI } from '../services/api';
-import type { GameList } from '../services/api';
+import { ListAPI, RawgAPI, SocialAPI } from '../services/api';
+import type { GameList, PublicUser } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export const ListDetailPage = () => {
@@ -15,16 +15,18 @@ export const ListDetailPage = () => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
-  const [collaboratorId, setCollaboratorId] = useState('');
+  const [collaboratorQuery, setCollaboratorQuery] = useState('');
+  const [collaboratorResults, setCollaboratorResults] = useState<PublicUser[]>([]);
   const [collaboratorBusy, setCollaboratorBusy] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const collaboratorSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchList = () => {
     if (!listId) return;
     setLoading(true);
     setError('');
     ListAPI.getOne(listId)
-      .then(res => setList(res.data))
+      .then(res => setList(res.data.list))
       .catch((err) => {
         if (err?.response?.status === 403) {
           setError('No tienes permiso para ver esta lista.');
@@ -40,7 +42,7 @@ export const ListDetailPage = () => {
   useEffect(() => { fetchList(); }, [listId]);
 
   const isOwner = !!list && !!user && list.ownerId === user.id;
-  const canEdit = !!list && !!user && (list.ownerId === user.id || list.collaboratorIds?.includes(user.id));
+  const canEdit = !!list && !!user && (list.ownerId === user.id || list.collaborators?.some(c => c.userId === user.id));
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,13 +78,30 @@ export const ListDetailPage = () => {
     }
   };
 
-  const handleAddCollaborator = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!listId || !collaboratorId.trim() || collaboratorBusy) return;
+  const handleCollaboratorQueryChange = (value: string) => {
+    setCollaboratorQuery(value);
+    if (collaboratorSearchTimer.current) clearTimeout(collaboratorSearchTimer.current);
+    if (!value.trim()) {
+      setCollaboratorResults([]);
+      return;
+    }
+    collaboratorSearchTimer.current = setTimeout(async () => {
+      try {
+        const res = await SocialAPI.searchUsers(value.trim());
+        setCollaboratorResults(res.data.users || []);
+      } catch (err) {
+        console.error('Failed to search users', err);
+      }
+    }, 300);
+  };
+
+  const handleAddCollaborator = async (candidate: PublicUser) => {
+    if (!listId || collaboratorBusy) return;
     setCollaboratorBusy(true);
     try {
-      await ListAPI.addCollaborator(listId, collaboratorId.trim());
-      setCollaboratorId('');
+      await ListAPI.addCollaborator(listId, candidate._id, candidate.username);
+      setCollaboratorQuery('');
+      setCollaboratorResults([]);
       fetchList();
     } catch (err) {
       console.error('Failed to add collaborator', err);
@@ -106,7 +125,7 @@ export const ListDetailPage = () => {
     setDeleting(true);
     try {
       await ListAPI.remove(listId);
-      navigate('/lists');
+      navigate('/');
     } catch (err) {
       console.error('Failed to delete list', err);
       setDeleting(false);
@@ -120,10 +139,12 @@ export const ListDetailPage = () => {
   if (error || !list) {
     return (
       <div className="page-container" style={{ color: 'var(--text-muted)' }}>
-        {error || 'Lista no encontrada.'} <Link to="/lists">Volver a mis listas</Link>
+        {error || 'Lista no encontrada.'} <Link to="/">Volver al dashboard</Link>
       </div>
     );
   }
+
+  const existingCollaboratorIds = new Set(list.collaborators?.map(c => c.userId) || []);
 
   return (
     <div className="page-container">
@@ -136,6 +157,11 @@ export const ListDetailPage = () => {
             {list.isPublic ? <Globe size={16} color="var(--text-muted)" /> : <Lock size={16} color="var(--text-muted)" />}
           </div>
           {list.description && <p style={{ color: 'var(--text-muted)' }}>{list.description}</p>}
+          {list.ownerUsername && (
+            <p style={{ color: 'var(--text-faint)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+              Creada por <Link to={`/u/${list.ownerUsername}`} style={{ color: 'var(--accent-violet)' }}>{list.ownerUsername}</Link>
+            </p>
+          )}
         </div>
         {isOwner && (
           <button onClick={handleDeleteList} disabled={deleting} className="btn-secondary" style={{ padding: '0.5rem 1rem', borderRadius: '8px' }}>
@@ -152,18 +178,20 @@ export const ListDetailPage = () => {
       }}>
         {(list.games || []).map(game => (
           <div key={game.rawgGameId} style={{ position: 'relative' }}>
-            <div style={{
-              aspectRatio: '3/4',
-              borderRadius: '10px',
-              overflow: 'hidden',
-              background: 'var(--bg-surface-2)',
-              backgroundImage: game.coverImage ? `url(${game.coverImage})` : undefined,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            }} />
-            <p style={{ fontSize: '0.8rem', marginTop: '0.4rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {game.title}
-            </p>
+            <Link to={`/games/${game.rawgGameId}`} style={{ display: 'block', color: 'inherit', textDecoration: 'none' }}>
+              <div style={{
+                aspectRatio: '3/4',
+                borderRadius: '10px',
+                overflow: 'hidden',
+                background: 'var(--bg-surface-2)',
+                backgroundImage: game.coverImage ? `url(${game.coverImage})` : undefined,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }} />
+              <p style={{ fontSize: '0.8rem', marginTop: '0.4rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {game.title}
+              </p>
+            </Link>
             {canEdit && (
               <button
                 onClick={() => handleRemoveGame(game.rawgGameId)}
@@ -229,29 +257,55 @@ export const ListDetailPage = () => {
           padding: '1.5rem',
         }}>
           <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '1rem' }}>Colaboradores</h3>
-          <form onSubmit={handleAddCollaborator} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+          <div style={{ position: 'relative', marginBottom: '1rem' }}>
             <input
               type="text"
-              value={collaboratorId}
-              onChange={e => setCollaboratorId(e.target.value)}
-              placeholder="ID del usuario a invitar"
-              style={{ flex: 1 }}
+              value={collaboratorQuery}
+              onChange={e => handleCollaboratorQueryChange(e.target.value)}
+              placeholder="Buscar un jugador por nombre de usuario..."
+              style={{ width: '100%' }}
             />
-            <button type="submit" className="btn-secondary" disabled={collaboratorBusy} style={{ padding: '0.6rem 1rem', borderRadius: '8px' }}>
-              Añadir
-            </button>
-          </form>
-          {list.collaboratorIds && list.collaboratorIds.length > 0 ? (
+            {collaboratorResults.length > 0 && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 0.4rem)', left: 0, right: 0,
+                background: 'var(--bg-surface-2)', border: '1px solid var(--border)',
+                borderRadius: '8px', overflow: 'hidden', zIndex: 5,
+              }}>
+                {collaboratorResults.map(candidate => {
+                  const already = existingCollaboratorIds.has(candidate._id) || candidate._id === list.ownerId;
+                  return (
+                    <button
+                      key={candidate._id}
+                      type="button"
+                      disabled={already || collaboratorBusy}
+                      onClick={() => handleAddCollaborator(candidate)}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'left',
+                        background: 'none', border: 'none', cursor: already ? 'default' : 'pointer',
+                        padding: '0.55rem 0.75rem', fontSize: '0.85rem',
+                        color: already ? 'var(--text-faint)' : 'var(--text-primary)',
+                      }}
+                    >
+                      {candidate.username} {already ? '(ya añadido)' : ''}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          {list.collaborators && list.collaborators.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              {list.collaboratorIds.map(cid => (
-                <div key={cid} style={{
+              {list.collaborators.map(collab => (
+                <div key={collab.userId} style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   background: 'var(--bg-surface-2)', border: '1px solid var(--border)',
                   borderRadius: '8px', padding: '0.5rem 0.75rem',
                 }}>
-                  <span style={{ fontSize: '0.85rem' }}>{cid}</span>
+                  <Link to={`/u/${collab.username}`} style={{ fontSize: '0.85rem', color: 'var(--accent-violet)', textDecoration: 'none' }}>
+                    {collab.username}
+                  </Link>
                   <button
-                    onClick={() => handleRemoveCollaborator(cid)}
+                    onClick={() => handleRemoveCollaborator(collab.userId)}
                     title="Quitar colaborador"
                     style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
                   >

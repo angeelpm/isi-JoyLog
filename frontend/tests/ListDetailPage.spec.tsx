@@ -1,9 +1,8 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ListDetailPage } from '../src/pages/ListDetailPage';
-import { ListsPage } from '../src/pages/ListsPage';
 import { useAuth } from '../src/context/AuthContext';
-import { ListAPI, RawgAPI } from '../src/services/api';
+import { ListAPI, RawgAPI, SocialAPI } from '../src/services/api';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 vi.mock('../src/context/AuthContext', () => ({
@@ -21,6 +20,7 @@ vi.mock('../src/services/api', () => ({
     removeCollaborator: vi.fn(),
   },
   RawgAPI: { searchGames: vi.fn() },
+  SocialAPI: { searchUsers: vi.fn() },
 }));
 
 const renderDetail = (listId = 'l1') =>
@@ -28,7 +28,7 @@ const renderDetail = (listId = 'l1') =>
     <MemoryRouter initialEntries={[`/lists/${listId}`]}>
       <Routes>
         <Route path="/lists/:listId" element={<ListDetailPage />} />
-        <Route path="/lists" element={<ListsPage />} />
+        <Route path="/" element={<div>Dashboard stub</div>} />
       </Routes>
     </MemoryRouter>
   );
@@ -39,7 +39,7 @@ describe('ListDetailPage', () => {
   it('renders a public list in read-only mode without crashing when viewer has no permission', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: null, token: null, loading: false, login: vi.fn(), logout: vi.fn() });
     vi.mocked(ListAPI.getOne).mockResolvedValue({
-      data: { _id: 'l1', title: 'Public list', isPublic: true, ownerId: 'u2', collaboratorIds: [], games: [{ rawgGameId: 1, title: 'Game A' }] },
+      data: { list: { _id: 'l1', title: 'Public list', isPublic: true, ownerId: 'u2', collaborators: [], games: [{ rawgGameId: 1, title: 'Game A' }] } },
     } as any);
 
     renderDetail();
@@ -62,7 +62,7 @@ describe('ListDetailPage', () => {
   it('allows a collaborator to add a game; the add form is hidden for non-collaborators', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u3', username: 'collab', email: 'c@test.com' }, token: 't', loading: false, login: vi.fn(), logout: vi.fn() });
     vi.mocked(ListAPI.getOne).mockResolvedValue({
-      data: { _id: 'l1', title: 'Shared list', isPublic: false, ownerId: 'u2', collaboratorIds: ['u3'], games: [] },
+      data: { list: { _id: 'l1', title: 'Shared list', isPublic: false, ownerId: 'u2', collaborators: [{ userId: 'u3', username: 'collab' }], games: [] } },
     } as any);
     vi.mocked(RawgAPI.searchGames).mockResolvedValue({ data: { results: [{ id: 7, name: 'Hades', background_image: 'h.jpg' }] } } as any);
     vi.mocked(ListAPI.addGame).mockResolvedValue({} as any);
@@ -86,7 +86,7 @@ describe('ListDetailPage', () => {
   it('only shows collaborator management to the owner', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u3', username: 'collab', email: 'c@test.com' }, token: 't', loading: false, login: vi.fn(), logout: vi.fn() });
     vi.mocked(ListAPI.getOne).mockResolvedValue({
-      data: { _id: 'l1', title: 'Shared list', isPublic: false, ownerId: 'u2', collaboratorIds: ['u3'], games: [] },
+      data: { list: { _id: 'l1', title: 'Shared list', isPublic: false, ownerId: 'u2', collaborators: [{ userId: 'u3', username: 'collab' }], games: [] } },
     } as any);
 
     renderDetail();
@@ -95,13 +95,33 @@ describe('ListDetailPage', () => {
     expect(screen.queryByText(/^Colaboradores$/i)).not.toBeInTheDocument();
   });
 
-  it('deleting a list as the owner removes it from "Mis listas"', async () => {
+  it('owner can search for a player and add them as a collaborator by username', async () => {
     vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1', username: 'me', email: 'me@test.com' }, token: 't', loading: false, login: vi.fn(), logout: vi.fn() });
     vi.mocked(ListAPI.getOne).mockResolvedValue({
-      data: { _id: 'l1', title: 'My list', isPublic: false, ownerId: 'u1', collaboratorIds: [], games: [] },
+      data: { list: { _id: 'l1', title: 'My list', isPublic: false, ownerId: 'u1', collaborators: [], games: [] } },
+    } as any);
+    vi.mocked(SocialAPI.searchUsers).mockResolvedValue({ data: { users: [{ _id: 'u9', username: 'bob' }] } } as any);
+    vi.mocked(ListAPI.addCollaborator).mockResolvedValue({} as any);
+
+    renderDetail();
+
+    await waitFor(() => expect(screen.getByText('My list')).toBeInTheDocument());
+
+    fireEvent.change(screen.getByPlaceholderText(/Buscar un jugador/i), { target: { value: 'bob' } });
+    await waitFor(() => expect(screen.getByText('bob')).toBeInTheDocument(), { timeout: 2000 });
+    fireEvent.click(screen.getByText('bob'));
+
+    await waitFor(() => {
+      expect(ListAPI.addCollaborator).toHaveBeenCalledWith('l1', 'u9', 'bob');
+    });
+  });
+
+  it('deleting a list as the owner navigates back to the dashboard', async () => {
+    vi.mocked(useAuth).mockReturnValue({ user: { id: 'u1', username: 'me', email: 'me@test.com' }, token: 't', loading: false, login: vi.fn(), logout: vi.fn() });
+    vi.mocked(ListAPI.getOne).mockResolvedValue({
+      data: { list: { _id: 'l1', title: 'My list', isPublic: false, ownerId: 'u1', collaborators: [], games: [] } },
     } as any);
     vi.mocked(ListAPI.remove).mockResolvedValue({} as any);
-    vi.mocked(ListAPI.getMine).mockResolvedValue({ data: { lists: [] } } as any);
 
     renderDetail();
 
@@ -109,6 +129,6 @@ describe('ListDetailPage', () => {
     fireEvent.click(screen.getByText(/Eliminar lista/i));
 
     await waitFor(() => expect(ListAPI.remove).toHaveBeenCalledWith('l1'));
-    await waitFor(() => expect(screen.getByText(/Todavía no tienes listas/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Dashboard stub')).toBeInTheDocument());
   });
 });

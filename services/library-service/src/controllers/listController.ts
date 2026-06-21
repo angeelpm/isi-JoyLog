@@ -3,7 +3,7 @@ import { GameList } from '../models/GameList';
 import { AuthRequest } from '../middleware/authMiddleware';
 
 const isOwnerOrCollaborator = (list: any, userId: string) =>
-    list.ownerId === userId || list.collaboratorIds.includes(userId);
+    list.ownerId === userId || list.collaborators.some((c: any) => c.userId === userId);
 
 // POST /lists
 export const createGameList = async (req: AuthRequest, res: Response): Promise<void> => {
@@ -13,7 +13,13 @@ export const createGameList = async (req: AuthRequest, res: Response): Promise<v
         return;
     }
     try {
-        const list = await GameList.create({ ownerId: req.userId, title, description, isPublic: isPublic ?? false });
+        const list = await GameList.create({
+            ownerId: req.userId,
+            ownerUsername: req.username,
+            title,
+            description,
+            isPublic: isPublic ?? false
+        });
         res.status(201).json({ list });
     } catch (error) {
         console.error(error);
@@ -25,8 +31,19 @@ export const createGameList = async (req: AuthRequest, res: Response): Promise<v
 export const getMineGameLists = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const lists = await GameList.find({
-            $or: [{ ownerId: req.userId }, { collaboratorIds: req.userId }]
+            $or: [{ ownerId: req.userId }, { 'collaborators.userId': req.userId }]
         });
+        res.json({ lists });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching lists' });
+    }
+};
+
+// GET /lists/user/:userId — public lists owned by a given user (for their public profile)
+export const getUserGameLists = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const lists = await GameList.find({ ownerId: req.params.userId, isPublic: true });
         res.json({ lists });
     } catch (error) {
         console.error(error);
@@ -90,12 +107,18 @@ export const addGameToList = async (req: AuthRequest, res: Response): Promise<vo
             res.status(403).json({ message: 'Access denied' });
             return;
         }
-        const updated = await GameList.findByIdAndUpdate(
-            req.params.listId,
-            { $addToSet: { rawgGameIds: String(req.body.rawgGameId) } },
-            { new: true }
-        );
-        res.json({ list: updated });
+        const { rawgGameId, title, coverImage } = req.body;
+        if (rawgGameId === undefined || rawgGameId === null || !title) {
+            res.status(400).json({ message: 'rawgGameId and title are required' });
+            return;
+        }
+        const rawgGameIdStr = String(rawgGameId);
+        const alreadyInList = list.games.some(g => g.rawgGameId === rawgGameIdStr);
+        if (!alreadyInList) {
+            list.games.push({ rawgGameId: rawgGameIdStr, title, coverImage: coverImage || '' });
+            await list.save();
+        }
+        res.json({ list });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error adding game to list' });
@@ -114,12 +137,9 @@ export const removeGameFromList = async (req: AuthRequest, res: Response): Promi
             res.status(403).json({ message: 'Access denied' });
             return;
         }
-        const updated = await GameList.findByIdAndUpdate(
-            req.params.listId,
-            { $pull: { rawgGameIds: req.params.rawgGameId } },
-            { new: true }
-        );
-        res.json({ list: updated });
+        list.games = list.games.filter(g => g.rawgGameId !== req.params.rawgGameId);
+        await list.save();
+        res.json({ list });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error removing game from list' });
@@ -138,12 +158,21 @@ export const addCollaborator = async (req: AuthRequest, res: Response): Promise<
             res.status(403).json({ message: 'Only the owner can manage collaborators' });
             return;
         }
-        const updated = await GameList.findByIdAndUpdate(
-            req.params.listId,
-            { $addToSet: { collaboratorIds: req.body.userId } },
-            { new: true }
-        );
-        res.json({ list: updated });
+        const { userId, username } = req.body;
+        if (!userId || !username) {
+            res.status(400).json({ message: 'userId and username are required' });
+            return;
+        }
+        if (userId === list.ownerId) {
+            res.status(400).json({ message: 'Owner is already part of the list' });
+            return;
+        }
+        const alreadyCollaborator = list.collaborators.some(c => c.userId === userId);
+        if (!alreadyCollaborator) {
+            list.collaborators.push({ userId, username });
+            await list.save();
+        }
+        res.json({ list });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error adding collaborator' });
@@ -162,12 +191,9 @@ export const removeCollaborator = async (req: AuthRequest, res: Response): Promi
             res.status(403).json({ message: 'Only the owner can manage collaborators' });
             return;
         }
-        const updated = await GameList.findByIdAndUpdate(
-            req.params.listId,
-            { $pull: { collaboratorIds: req.params.userId } },
-            { new: true }
-        );
-        res.json({ list: updated });
+        list.collaborators = list.collaborators.filter(c => c.userId !== req.params.userId);
+        await list.save();
+        res.json({ list });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error removing collaborator' });

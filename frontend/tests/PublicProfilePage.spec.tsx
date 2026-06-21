@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { PublicProfilePage } from '../src/pages/PublicProfilePage';
 import { useAuth } from '../src/context/AuthContext';
-import { SocialAPI } from '../src/services/api';
+import { SocialAPI, ListAPI } from '../src/services/api';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 vi.mock('../src/context/AuthContext', () => ({
@@ -15,6 +15,7 @@ vi.mock('../src/services/api', () => ({
     getPublicStats: vi.fn(),
     getCommonGames: vi.fn(),
   },
+  ListAPI: { getByUser: vi.fn() },
 }));
 
 const renderProfile = (username = 'friend') =>
@@ -38,6 +39,7 @@ describe('PublicProfilePage favorites & common games', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(SocialAPI.getPublicStats).mockResolvedValue({ data: { stats: { total: 0, completed: 0, totalHoursPlayed: 0, avgRating: 0 } } } as any);
+    vi.mocked(ListAPI.getByUser).mockResolvedValue({ data: { lists: [] } } as any);
   });
 
   it('renders favoriteGames in read-only mode', async () => {

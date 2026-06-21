@@ -39,7 +39,7 @@ afterEach(async () => {
 describe('POST /lists - create a list', () => {
     it('should create a list and return 201', async () => {
         const userId = new mongoose.Types.ObjectId().toString();
-        const token = generateToken(userId);
+        const token = generateToken(userId, 'owner1');
 
         const res = await request(app)
             .post('/lists')
@@ -49,7 +49,10 @@ describe('POST /lists - create a list', () => {
         expect(res.status).toBe(201);
         expect(res.body.list.title).toBe('My List');
         expect(res.body.list.ownerId).toBe(userId);
+        expect(res.body.list.ownerUsername).toBe('owner1');
         expect(res.body.list.isPublic).toBe(true);
+        expect(res.body.list.games).toEqual([]);
+        expect(res.body.list.collaborators).toEqual([]);
     });
 
     it('should appear in /lists/mine after creation', async () => {
@@ -125,7 +128,7 @@ describe('GET /lists/:listId - view a list', () => {
         await request(app)
             .post(`/lists/${list._id}/collaborators`)
             .set('Authorization', `Bearer ${ownerToken}`)
-            .send({ userId: collabId });
+            .send({ userId: collabId, username: 'collab' });
 
         const collabToken = generateToken(collabId, 'collab');
         const res = await request(app)
@@ -138,6 +141,26 @@ describe('GET /lists/:listId - view a list', () => {
     it('should return 404 for a non-existent list', async () => {
         const res = await request(app).get(`/lists/${new mongoose.Types.ObjectId()}`);
         expect(res.status).toBe(404);
+    });
+});
+
+describe('GET /lists/user/:userId - public lists for a user', () => {
+    it('should return only public lists owned by the user', async () => {
+        const ownerId = new mongoose.Types.ObjectId().toString();
+        await createList(ownerId, 'Public One', true);
+        await createList(ownerId, 'Private One', false);
+
+        const res = await request(app).get(`/lists/user/${ownerId}`);
+        expect(res.status).toBe(200);
+        expect(res.body.lists).toHaveLength(1);
+        expect(res.body.lists[0].title).toBe('Public One');
+    });
+
+    it('should not require authentication', async () => {
+        const ownerId = new mongoose.Types.ObjectId().toString();
+        const res = await request(app).get(`/lists/user/${ownerId}`);
+        expect(res.status).toBe(200);
+        expect(res.body.lists).toEqual([]);
     });
 });
 
@@ -173,7 +196,7 @@ describe('PUT /lists/:listId - edit a list', () => {
 });
 
 describe('POST /lists/:listId/games - add a game', () => {
-    it('should allow owner to add a game and avoid duplicates', async () => {
+    it('should allow owner to add a game (with title and cover) and avoid duplicates', async () => {
         const ownerId = new mongoose.Types.ObjectId().toString();
         const list = await createList(ownerId, 'Game List');
         const ownerToken = generateToken(ownerId, `user_${ownerId.slice(-4)}`);
@@ -190,8 +213,21 @@ describe('POST /lists/:listId/games - add a game', () => {
             .send({ rawgGameId: '123', title: 'Zelda', coverImage: 'zelda.jpg' });
 
         expect(res.status).toBe(200);
-        expect(res.body.list.rawgGameIds).toHaveLength(1);
-        expect(res.body.list.rawgGameIds[0]).toBe('123');
+        expect(res.body.list.games).toHaveLength(1);
+        expect(res.body.list.games[0]).toMatchObject({ rawgGameId: '123', title: 'Zelda', coverImage: 'zelda.jpg' });
+    });
+
+    it('should return 400 when title is missing', async () => {
+        const ownerId = new mongoose.Types.ObjectId().toString();
+        const list = await createList(ownerId, 'Game List');
+        const ownerToken = generateToken(ownerId, `user_${ownerId.slice(-4)}`);
+
+        const res = await request(app)
+            .post(`/lists/${list._id}/games`)
+            .set('Authorization', `Bearer ${ownerToken}`)
+            .send({ rawgGameId: '999' });
+
+        expect(res.status).toBe(400);
     });
 
     it('should allow collaborator to add a game', async () => {
@@ -203,7 +239,7 @@ describe('POST /lists/:listId/games - add a game', () => {
         await request(app)
             .post(`/lists/${list._id}/collaborators`)
             .set('Authorization', `Bearer ${ownerToken}`)
-            .send({ userId: collabId });
+            .send({ userId: collabId, username: 'collab' });
 
         const collabToken = generateToken(collabId, 'collab');
         const res = await request(app)
@@ -212,7 +248,7 @@ describe('POST /lists/:listId/games - add a game', () => {
             .send({ rawgGameId: '456', title: 'Metroid', coverImage: '' });
 
         expect(res.status).toBe(200);
-        expect(res.body.list.rawgGameIds).toContain('456');
+        expect(res.body.list.games.map((g: any) => g.rawgGameId)).toContain('456');
     });
 
     it('should return 403 for an external user (not owner or collaborator)', async () => {
@@ -239,18 +275,49 @@ describe('DELETE /lists/:listId/games/:rawgGameId - remove a game', () => {
         await request(app)
             .post(`/lists/${list._id}/games`)
             .set('Authorization', `Bearer ${ownerToken}`)
-            .send({ rawgGameId: '111' });
+            .send({ rawgGameId: '111', title: 'Some Game' });
 
         const res = await request(app)
             .delete(`/lists/${list._id}/games/111`)
             .set('Authorization', `Bearer ${ownerToken}`);
 
         expect(res.status).toBe(200);
-        expect(res.body.list.rawgGameIds).not.toContain('111');
+        expect(res.body.list.games.map((g: any) => g.rawgGameId)).not.toContain('111');
     });
 });
 
 describe('Collaborator management', () => {
+    it('should add a collaborator with a denormalized username', async () => {
+        const ownerId = new mongoose.Types.ObjectId().toString();
+        const collabId = new mongoose.Types.ObjectId().toString();
+        const list = await createList(ownerId, 'List');
+
+        const ownerToken = generateToken(ownerId, `user_${ownerId.slice(-4)}`);
+        const res = await request(app)
+            .post(`/lists/${list._id}/collaborators`)
+            .set('Authorization', `Bearer ${ownerToken}`)
+            .send({ userId: collabId, username: 'collab_user' });
+
+        expect(res.status).toBe(200);
+        expect(res.body.list.collaborators).toContainEqual(
+            expect.objectContaining({ userId: collabId, username: 'collab_user' })
+        );
+    });
+
+    it('should return 400 when username is missing', async () => {
+        const ownerId = new mongoose.Types.ObjectId().toString();
+        const collabId = new mongoose.Types.ObjectId().toString();
+        const list = await createList(ownerId, 'List');
+
+        const ownerToken = generateToken(ownerId, `user_${ownerId.slice(-4)}`);
+        const res = await request(app)
+            .post(`/lists/${list._id}/collaborators`)
+            .set('Authorization', `Bearer ${ownerToken}`)
+            .send({ userId: collabId });
+
+        expect(res.status).toBe(400);
+    });
+
     it('should return 403 when non-owner tries to add a collaborator', async () => {
         const ownerId = new mongoose.Types.ObjectId().toString();
         const strangerId = new mongoose.Types.ObjectId().toString();
@@ -261,7 +328,7 @@ describe('Collaborator management', () => {
         const res = await request(app)
             .post(`/lists/${list._id}/collaborators`)
             .set('Authorization', `Bearer ${strangerToken}`)
-            .send({ userId: victimId });
+            .send({ userId: victimId, username: 'victim' });
 
         expect(res.status).toBe(403);
     });
@@ -276,7 +343,7 @@ describe('Collaborator management', () => {
         await request(app)
             .post(`/lists/${list._id}/collaborators`)
             .set('Authorization', `Bearer ${ownerToken}`)
-            .send({ userId: collabId });
+            .send({ userId: collabId, username: 'collab' });
 
         const strangerToken = generateToken(strangerId, 'stranger');
         const res = await request(app)
@@ -295,7 +362,7 @@ describe('Collaborator management', () => {
         await request(app)
             .post(`/lists/${list._id}/collaborators`)
             .set('Authorization', `Bearer ${ownerToken}`)
-            .send({ userId: collabId });
+            .send({ userId: collabId, username: 'collab' });
 
         const collabToken = generateToken(collabId, 'collab');
         const res = await request(app)
