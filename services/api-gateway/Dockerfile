@@ -11,4 +11,9 @@ COPY frontend/package.json ./frontend/
 
 RUN npm install
 
+COPY services/api-gateway/ ./services/api-gateway/
+COPY shared/ ./shared/
+
 EXPOSE 3000
+
+CMD ["npm", "run", "dev", "--workspace=api-gateway"]

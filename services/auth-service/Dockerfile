@@ -10,4 +10,9 @@ COPY frontend/package.json ./frontend/
 
 RUN npm install
 
+COPY services/auth-service/ ./services/auth-service/
+COPY shared/ ./shared/
+
 EXPOSE 3001
+
+CMD ["npm", "run", "dev", "--workspace=auth-service"]
