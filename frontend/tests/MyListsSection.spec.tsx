@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { ListsPage } from '../src/pages/ListsPage';
+import { MyListsSection } from '../src/components/MyListsSection';
 import { useAuth } from '../src/context/AuthContext';
 import { ListAPI } from '../src/services/api';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
@@ -13,14 +13,14 @@ vi.mock('../src/services/api', () => ({
   ListAPI: { create: vi.fn(), getMine: vi.fn(), remove: vi.fn() },
 }));
 
-const renderLists = () =>
+const renderSection = () =>
   render(
     <BrowserRouter>
-      <ListsPage />
+      <MyListsSection />
     </BrowserRouter>
   );
 
-describe('ListsPage', () => {
+describe('MyListsSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(useAuth).mockReturnValue({
@@ -32,19 +32,19 @@ describe('ListsPage', () => {
     });
   });
 
-  it('creating a list adds it to "Mis listas"', async () => {
+  it('creating a list adds it to "Tus listas"', async () => {
     vi.mocked(ListAPI.getMine)
       .mockResolvedValueOnce({ data: { lists: [] } } as any)
       .mockResolvedValueOnce({
-        data: { lists: [{ _id: 'l1', title: 'My RPGs', isPublic: false, ownerId: 'u1', collaboratorIds: [], games: [] }] },
+        data: { lists: [{ _id: 'l1', title: 'My RPGs', isPublic: false, ownerId: 'u1', collaborators: [], games: [] }] },
       } as any);
-    vi.mocked(ListAPI.create).mockResolvedValue({ data: {} } as any);
+    vi.mocked(ListAPI.create).mockResolvedValue({ data: { list: {} } } as any);
 
-    renderLists();
+    renderSection();
 
     await waitFor(() => expect(screen.getByText(/Todavía no tienes listas/i)).toBeInTheDocument());
 
-    fireEvent.click(screen.getByText(/Crear lista/i));
+    fireEvent.click(screen.getByText('Crear lista'));
     fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'My RPGs' } });
     fireEvent.click(screen.getByText('Crear'));
 
@@ -58,13 +58,13 @@ describe('ListsPage', () => {
     vi.mocked(ListAPI.getMine).mockResolvedValue({
       data: {
         lists: [
-          { _id: 'l1', title: 'Owned list', isPublic: false, ownerId: 'u1', collaboratorIds: [], games: [] },
-          { _id: 'l2', title: 'Shared list', isPublic: true, ownerId: 'u2', collaboratorIds: ['u1'], games: [{ rawgGameId: 1, title: 'A' }] },
+          { _id: 'l1', title: 'Owned list', isPublic: false, ownerId: 'u1', collaborators: [], games: [] },
+          { _id: 'l2', title: 'Shared list', isPublic: true, ownerId: 'u2', collaborators: [{ userId: 'u1', username: 'me' }], games: [{ rawgGameId: 1, title: 'A' }] },
         ],
       },
     } as any);
 
-    renderLists();
+    renderSection();
 
     await waitFor(() => expect(screen.getByText('Owned list')).toBeInTheDocument());
     expect(screen.getByText('Shared list')).toBeInTheDocument();

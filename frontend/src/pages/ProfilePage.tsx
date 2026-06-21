@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { X, Search } from 'lucide-react';
+import { X, Search, Lock, Globe } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { AuthAPI, RawgAPI } from '../services/api';
-import type { FavoriteGame } from '../services/api';
+import { AuthAPI, RawgAPI, ListAPI } from '../services/api';
+import type { FavoriteGame, GameList } from '../services/api';
 
 export const ProfilePage = () => {
   const { user, login } = useAuth();
@@ -14,11 +14,21 @@ export const ProfilePage = () => {
   const [favResults, setFavResults] = useState<any[]>([]);
   const [favSearching, setFavSearching] = useState(false);
   const [savingFavorites, setSavingFavorites] = useState(false);
+  const [myLists, setMyLists] = useState<GameList[]>([]);
+  const [loadingLists, setLoadingLists] = useState(true);
 
   useEffect(() => {
     if (user?.bio) setBio(user.bio);
     setFavorites(user?.favoriteGames || []);
   }, [user]);
+
+  useEffect(() => {
+    setLoadingLists(true);
+    ListAPI.getMine()
+      .then(res => setMyLists(res.data.lists || []))
+      .catch(() => setMyLists([]))
+      .finally(() => setLoadingLists(false));
+  }, []);
 
   const handleFavSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,18 +181,20 @@ export const ProfilePage = () => {
             }}>
               {favorites.map(fav => (
                 <div key={fav.rawgGameId} style={{ position: 'relative' }}>
-                  <div style={{
-                    aspectRatio: '3/4',
-                    borderRadius: '8px',
-                    overflow: 'hidden',
-                    background: 'var(--bg-surface-2)',
-                    backgroundImage: fav.coverImage ? `url(${fav.coverImage})` : undefined,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                  }} />
-                  <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.3rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {fav.title}
-                  </p>
+                  <Link to={`/games/${fav.rawgGameId}`} style={{ display: 'block', color: 'inherit', textDecoration: 'none' }}>
+                    <div style={{
+                      aspectRatio: '3/4',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      background: 'var(--bg-surface-2)',
+                      backgroundImage: fav.coverImage ? `url(${fav.coverImage})` : undefined,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                    }} />
+                    <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.3rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {fav.title}
+                    </p>
+                  </Link>
                   <button
                     onClick={() => removeFavorite(fav.rawgGameId)}
                     disabled={savingFavorites}
@@ -236,6 +248,41 @@ export const ProfilePage = () => {
                 </button>
               ))}
             </div>
+          )}
+        </div>
+
+        {/* Lists section */}
+        <div style={{ padding: '2rem', borderTop: '1px solid var(--border)' }}>
+          <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem' }}>Mis listas</h3>
+          {loadingLists ? (
+            <p style={{ color: 'var(--text-faint)', fontSize: '0.85rem' }}>Cargando listas...</p>
+          ) : myLists.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {myLists.map(list => (
+                <Link
+                  key={list._id}
+                  to={`/lists/${list._id}`}
+                  style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem',
+                    background: 'var(--bg-surface-2)', border: '1px solid var(--border)',
+                    borderRadius: '8px', padding: '0.6rem 0.9rem',
+                    textDecoration: 'none', color: 'inherit',
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 600 }}>
+                    {list.isPublic ? <Globe size={13} color="var(--text-muted)" /> : <Lock size={13} color="var(--text-muted)" />}
+                    {list.title}
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>
+                    {list.games?.length || 0} {list.games?.length === 1 ? 'juego' : 'juegos'}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: 'var(--text-faint)', fontSize: '0.85rem' }}>
+              Todavía no tienes listas. <Link to="/" style={{ color: 'var(--accent-violet)' }}>Crea una desde el dashboard</Link>.
+            </p>
           )}
         </div>
       </div>

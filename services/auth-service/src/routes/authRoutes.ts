@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import {
     registerUser, loginUser, getProfile, updateProfile,
-    getUserProfile, followUser, unfollowUser, getFollowers, getFollowing
+    getUserProfile, followUser, unfollowUser, getFollowers, getFollowing,
+    searchUsers
 } from '../controllers/authController';
 import { authMiddleware, optionalAuthMiddleware } from '../middleware/authMiddleware';
 
@@ -12,6 +13,8 @@ router.post('/login', loginUser);
 router.get('/me', authMiddleware, getProfile);
 router.put('/me', authMiddleware, updateProfile);
 
+// /users/search must be defined before /users/:username (order matters)
+router.get('/users/search', optionalAuthMiddleware, searchUsers);
 router.get('/users/:username', optionalAuthMiddleware, getUserProfile);
 router.post('/users/:userId/follow', authMiddleware, followUser);
 router.delete('/users/:userId/follow', authMiddleware, unfollowUser);

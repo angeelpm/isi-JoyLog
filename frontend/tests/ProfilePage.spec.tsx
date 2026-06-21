@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { ProfilePage } from '../src/pages/ProfilePage';
 import { useAuth } from '../src/context/AuthContext';
-import { AuthAPI, RawgAPI } from '../src/services/api';
+import { AuthAPI, RawgAPI, ListAPI } from '../src/services/api';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 
 vi.mock('../src/context/AuthContext', () => ({
@@ -12,6 +12,7 @@ vi.mock('../src/context/AuthContext', () => ({
 vi.mock('../src/services/api', () => ({
   AuthAPI: { updateProfile: vi.fn() },
   RawgAPI: { searchGames: vi.fn() },
+  ListAPI: { getMine: vi.fn() },
 }));
 
 const renderProfile = () =>
@@ -26,6 +27,7 @@ describe('ProfilePage favorites', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(ListAPI.getMine).mockResolvedValue({ data: { lists: [] } } as any);
   });
 
   it('adding a favorite calls updateProfile with the new array and updates the UI', async () => {

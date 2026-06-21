@@ -5,6 +5,7 @@ import { LibraryAPI } from '../services/api';
 import { GameCard } from '../components/GameCard';
 import { LibraryEntryModal } from '../components/LibraryEntryModal';
 import { AIRecommendationsWidget } from '../components/AIRecommendationsWidget';
+import { MyListsSection } from '../components/MyListsSection';
 
 const StatCard = ({
   label,
@@ -170,6 +171,8 @@ export const DashboardPage = () => {
           </div>
         )}
       </div>
+
+      <MyListsSection />
 
       {selectedGame && (
         <LibraryEntryModal

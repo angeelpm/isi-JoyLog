@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Lock, Globe } from 'lucide-react';
+import { Plus, Lock, Globe, ListChecks } from 'lucide-react';
 import { ListAPI } from '../services/api';
 import type { GameList } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
-export const ListsPage = () => {
+export const MyListsSection = () => {
   const { user } = useAuth();
   const [lists, setLists] = useState<GameList[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -18,10 +17,9 @@ export const ListsPage = () => {
 
   const fetchLists = () => {
     setLoading(true);
-    setError('');
     ListAPI.getMine()
       .then(res => setLists(res.data.lists || []))
-      .catch(() => setError('No se pudieron cargar tus listas.'))
+      .catch(() => setLists([]))
       .finally(() => setLoading(false));
   };
 
@@ -46,35 +44,44 @@ export const ListsPage = () => {
   };
 
   return (
-    <div className="page-container">
-      <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1rem' }}>
+    <div style={{ marginTop: '3.5rem' }}>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between',
+        alignItems: 'flex-end', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem'
+      }}>
         <div>
-          <p style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+          <p style={{
+            fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.12em',
+            textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.3rem'
+          }}>
             Colaborativas
           </p>
-          <h1 style={{ fontFamily: "'Unbounded', sans-serif", fontSize: 'clamp(1.6rem, 4vw, 2.5rem)', fontWeight: 900, lineHeight: 1 }}>
-            Mis listas
-          </h1>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 600 }}>Tus listas</h2>
         </div>
-        <button className="btn-primary" onClick={() => setShowCreate(true)}>
-          <Plus size={15} /> Crear lista
+        <button
+          className="btn-secondary"
+          onClick={() => setShowCreate(true)}
+          style={{ fontSize: '0.8rem', padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+        >
+          <Plus size={14} /> Crear lista
         </button>
       </div>
 
       {loading ? (
         <p style={{ color: 'var(--text-muted)' }}>Cargando listas...</p>
-      ) : error ? (
-        <p style={{ color: 'var(--text-muted)' }}>{error}</p>
       ) : lists.length === 0 ? (
         <div style={{
           background: 'var(--bg-surface)',
           border: '1px dashed var(--border-strong)',
           borderRadius: '16px',
-          padding: '4rem 2rem',
+          padding: '3rem 2rem',
           textAlign: 'center',
-          color: 'var(--text-muted)',
         }}>
-          Todavía no tienes listas. Crea la primera para empezar a organizar juegos con otros.
+          <ListChecks size={32} style={{ color: 'var(--text-faint)', margin: '0 auto 1rem', display: 'block' }} />
+          <p style={{ color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+            Todavía no tienes listas. Crea la primera para organizar juegos con otros.
+          </p>
+          <button className="btn-primary" onClick={() => setShowCreate(true)}>Crear la primera lista</button>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>

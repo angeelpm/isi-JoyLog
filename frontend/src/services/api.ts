@@ -50,6 +50,12 @@ export const PriceAPI = {
   getGamePrice: (title: string) => api.get('/api/library/prices', { params: { title } }),
 };
 
+export interface PublicUser {
+  _id: string;
+  username: string;
+  avatarUrl?: string;
+}
+
 export const SocialAPI = {
   getPublicProfile: (username: string) => api.get(`/api/auth/users/${username}`),
   follow: (userId: string) => api.post(`/api/auth/users/${userId}/follow`),
@@ -60,12 +66,18 @@ export const SocialAPI = {
   likeReview: (gameEntryId: string, reviewLogId: string) => api.post('/api/library/likes', { gameEntryId, reviewLogId }),
   unlikeReview: (reviewLogId: string) => api.delete(`/api/library/likes/${reviewLogId}`),
   getCommonGames: (otherUserId: string) => api.get(`/api/library/common/${otherUserId}`),
+  searchUsers: (q: string) => api.get<{ users: PublicUser[] }>('/api/auth/users/search', { params: { q } }),
 };
 
 export interface FavoriteGame {
   rawgGameId: number | string;
   title: string;
   coverImage?: string;
+}
+
+export interface GameListCollaborator {
+  userId: string;
+  username: string;
 }
 
 export interface GameList {
@@ -75,26 +87,27 @@ export interface GameList {
   isPublic: boolean;
   ownerId: string;
   ownerUsername?: string;
-  collaboratorIds: string[];
+  collaborators: GameListCollaborator[];
   games: { rawgGameId: number | string; title: string; coverImage?: string }[];
 }
 
 export const ListAPI = {
   create: (data: { title: string; description?: string; isPublic: boolean }) =>
-    api.post<GameList>('/api/library/lists', data),
+    api.post<{ list: GameList }>('/api/library/lists', data),
   getMine: () => api.get<{ lists: GameList[] }>('/api/library/lists/mine'),
-  getOne: (listId: string) => api.get<GameList>(`/api/library/lists/${listId}`),
+  getByUser: (userId: string) => api.get<{ lists: GameList[] }>(`/api/library/lists/user/${userId}`),
+  getOne: (listId: string) => api.get<{ list: GameList }>(`/api/library/lists/${listId}`),
   update: (listId: string, data: Partial<{ title: string; description: string; isPublic: boolean }>) =>
-    api.put<GameList>(`/api/library/lists/${listId}`, data),
+    api.put<{ list: GameList }>(`/api/library/lists/${listId}`, data),
   remove: (listId: string) => api.delete(`/api/library/lists/${listId}`),
   addGame: (listId: string, game: { rawgGameId: number | string; title: string; coverImage?: string }) =>
-    api.post(`/api/library/lists/${listId}/games`, game),
+    api.post<{ list: GameList }>(`/api/library/lists/${listId}/games`, game),
   removeGame: (listId: string, rawgGameId: number | string) =>
-    api.delete(`/api/library/lists/${listId}/games/${rawgGameId}`),
-  addCollaborator: (listId: string, userId: string) =>
-    api.post(`/api/library/lists/${listId}/collaborators`, { userId }),
+    api.delete<{ list: GameList }>(`/api/library/lists/${listId}/games/${rawgGameId}`),
+  addCollaborator: (listId: string, userId: string, username: string) =>
+    api.post<{ list: GameList }>(`/api/library/lists/${listId}/collaborators`, { userId, username }),
   removeCollaborator: (listId: string, userId: string) =>
-    api.delete(`/api/library/lists/${listId}/collaborators/${userId}`),
+    api.delete<{ list: GameList }>(`/api/library/lists/${listId}/collaborators/${userId}`),
 };
 
 export interface FeedItem {
