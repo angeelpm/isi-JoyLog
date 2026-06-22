@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Lock, Globe, ListChecks } from 'lucide-react';
+import { Plus, Lock, Globe, ListChecks, X } from 'lucide-react';
 import { ListAPI } from '../services/api';
 import type { GameList } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -116,35 +116,122 @@ export const MyListsSection = () => {
       )}
 
       {showCreate && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50,
-        }}>
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setShowCreate(false); }}
+          style={{
+            position: 'fixed', inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, backdropFilter: 'blur(10px)', padding: '1.5rem',
+            animation: 'fadeIn 0.2s ease-out',
+          }}
+        >
           <form
             onSubmit={handleCreate}
             style={{
-              background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '16px',
-              padding: '2rem', width: '90%', maxWidth: '420px',
+              maxWidth: '440px', width: '100%',
+              background: 'var(--bg-surface)', border: '1px solid var(--border-strong)',
+              borderRadius: '16px', boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
+              display: 'flex', flexDirection: 'column', overflow: 'hidden',
+              animation: 'fadeInUp 0.25s ease-out',
             }}
           >
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1.25rem' }}>Nueva lista</h2>
-            <div className="form-group" style={{ marginBottom: '1rem' }}>
-              <label htmlFor="list-title" className="form-label">Título</label>
-              <input id="list-title" type="text" value={title} onChange={e => setTitle(e.target.value)} required style={{ marginTop: '0.4rem' }} />
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)',
+            }}>
+              <h2 style={{ fontSize: '1rem', fontWeight: 700 }}>Nueva lista</h2>
+              <button
+                type="button"
+                onClick={() => setShowCreate(false)}
+                style={{
+                  background: 'rgba(255,255,255,0.08)', border: '1px solid var(--border)',
+                  borderRadius: '50%', width: '30px', height: '30px', color: 'var(--text-muted)',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <X size={14} />
+              </button>
             </div>
-            <div className="form-group" style={{ marginBottom: '1rem' }}>
-              <label htmlFor="list-description" className="form-label">Descripción</label>
-              <textarea id="list-description" value={description} onChange={e => setDescription(e.target.value)} rows={3} style={{ marginTop: '0.4rem' }} />
+
+            <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div>
+                <label htmlFor="list-title" style={{ display: 'block', fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                  Título
+                </label>
+                <input
+                  id="list-title"
+                  type="text"
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  placeholder="Ej. Joyas indie 2024"
+                  required
+                  autoFocus
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="list-description" style={{ display: 'block', fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                  Descripción <span style={{ textTransform: 'none', fontWeight: 400, letterSpacing: 0 }}>(opcional)</span>
+                </label>
+                <textarea
+                  id="list-description"
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  rows={3}
+                  placeholder="¿De qué trata esta lista?"
+                  style={{ width: '100%', resize: 'vertical' }}
+                />
+              </div>
+
+              <div>
+                <p style={{ fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                  Visibilidad
+                </p>
+                <div style={{ display: 'flex', gap: '0.6rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsPublic(false)}
+                    style={{
+                      flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem',
+                      padding: '0.85rem 0.5rem', borderRadius: '10px', cursor: 'pointer',
+                      border: `1px solid ${!isPublic ? 'var(--accent)' : 'var(--border)'}`,
+                      background: !isPublic ? 'rgba(255,59,92,0.08)' : 'var(--bg-surface-2)',
+                      color: !isPublic ? 'var(--text-primary)' : 'var(--text-muted)',
+                      transition: 'border-color 0.15s, background 0.15s',
+                    }}
+                  >
+                    <Lock size={16} />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Privada</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsPublic(true)}
+                    style={{
+                      flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem',
+                      padding: '0.85rem 0.5rem', borderRadius: '10px', cursor: 'pointer',
+                      border: `1px solid ${isPublic ? 'var(--accent)' : 'var(--border)'}`,
+                      background: isPublic ? 'rgba(255,59,92,0.08)' : 'var(--bg-surface-2)',
+                      color: isPublic ? 'var(--text-primary)' : 'var(--text-muted)',
+                      transition: 'border-color 0.15s, background 0.15s',
+                    }}
+                  >
+                    <Globe size={16} />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Pública</span>
+                  </button>
+                </div>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-faint)', marginTop: '0.5rem' }}>
+                  {isPublic ? 'Cualquiera podrá ver esta lista desde tu perfil.' : 'Solo tú y tus colaboradores podréis verla.'}
+                </p>
+              </div>
             </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', marginBottom: '1.5rem', cursor: 'pointer' }}>
-              <input type="checkbox" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} />
-              Lista pública
-            </label>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
+
+            <div style={{ display: 'flex', gap: '0.75rem', padding: '1.25rem 1.5rem', borderTop: '1px solid var(--border)' }}>
               <button type="button" className="btn-secondary" onClick={() => setShowCreate(false)} style={{ flex: 1, padding: '0.7rem', borderRadius: '8px' }}>
                 Cancelar
               </button>
-              <button type="submit" className="btn-primary" disabled={creating} style={{ flex: 1, padding: '0.7rem', borderRadius: '8px' }}>
+              <button type="submit" className="btn-primary" disabled={creating || !title.trim()} style={{ flex: 1, padding: '0.7rem', borderRadius: '8px' }}>
                 {creating ? 'Creando...' : 'Crear'}
               </button>
             </div>
