@@ -32,6 +32,7 @@ export const LibraryAPI = {
   deleteGame: (id: string) => api.delete(`/api/library/${id}`),
   getStats: () => api.get('/api/library/stats'),
   getGameReviews: (rawgGameId: number | string) => api.get(`/api/library/reviews/${rawgGameId}`),
+  getEntryByRawgId: (rawgGameId: number | string) => api.get(`/api/library/by-rawg/${rawgGameId}`),
 };
 
 export const RawgAPI = {

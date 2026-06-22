@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Gamepad2, UserCircle2 } from 'lucide-react';
-import { RawgAPI, SocialAPI } from '../services/api';
+import { RawgAPI, SocialAPI, LibraryAPI } from '../services/api';
 import type { PublicUser } from '../services/api';
 import { LibraryEntryModal } from '../components/LibraryEntryModal';
 import { PriceWidget } from '../components/PriceWidget';
@@ -151,15 +151,22 @@ export const SearchPage = () => {
     }
   };
 
-  const handleGameSelect = (game: any) => {
-    setSelectedGame({
+  const handleGameSelect = async (game: any) => {
+    const baseGame = {
       rawgGameId: game.id,
       title: game.name,
       coverImage: game.background_image,
       platforms: game.platforms?.map((p: any) => p.platform.name) || [],
       genres: game.genres?.map((g: any) => g.name) || [],
       status: 'wishlist',
-    });
+    };
+    try {
+      const { data } = await LibraryAPI.getEntryByRawgId(game.id);
+      setSelectedGame(data.entry ? { ...baseGame, ...data.entry, _id: data.entry._id } : baseGame);
+    } catch (err) {
+      console.error('Failed to fetch existing library entry', err);
+      setSelectedGame(baseGame);
+    }
   };
 
   return (
