@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Trash2, Search, UserMinus, Lock, Globe } from 'lucide-react';
+import { Trash2, Search, UserMinus, Lock, Globe, Plus, UserPlus, X, UserCircle2 } from 'lucide-react';
 import { ListAPI, RawgAPI, SocialAPI } from '../services/api';
 import type { GameList, PublicUser } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -19,6 +19,8 @@ export const ListDetailPage = () => {
   const [collaboratorResults, setCollaboratorResults] = useState<PublicUser[]>([]);
   const [collaboratorBusy, setCollaboratorBusy] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showAddGameModal, setShowAddGameModal] = useState(false);
+  const [showAddCollaboratorModal, setShowAddCollaboratorModal] = useState(false);
   const collaboratorSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchList = () => {
@@ -170,6 +172,29 @@ export const ListDetailPage = () => {
         )}
       </div>
 
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <h3 style={{ fontSize: '0.95rem', fontWeight: 700 }}>
+          Juegos {list.games?.length ? (
+            <span style={{
+              background: 'var(--bg-surface-2)', border: '1px solid var(--border)',
+              borderRadius: '100px', padding: '0.1rem 0.55rem', fontSize: '0.75rem',
+              color: 'var(--text-muted)', fontFamily: "'DM Mono', monospace", marginLeft: '0.4rem',
+            }}>
+              {list.games.length}
+            </span>
+          ) : null}
+        </h3>
+        {canEdit && (
+          <button
+            onClick={() => setShowAddGameModal(true)}
+            className="btn-primary"
+            style={{ padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.85rem' }}
+          >
+            <Plus size={14} /> Añadir juego
+          </button>
+        )}
+      </div>
+
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
@@ -213,101 +238,54 @@ export const ListDetailPage = () => {
         )}
       </div>
 
-      {canEdit && (
-        <div style={{
-          background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '14px',
-          padding: '1.5rem', marginBottom: '2rem',
-        }}>
-          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '1rem' }}>Añadir juego</h3>
-          <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-            <input
-              type="text"
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Buscar un juego..."
-              style={{ flex: 1 }}
-            />
-            <button type="submit" className="btn-secondary" disabled={searching} style={{ padding: '0.6rem 1rem', borderRadius: '8px' }}>
-              <Search size={14} />
-            </button>
-          </form>
-          {results.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              {results.slice(0, 5).map(game => (
-                <button
-                  key={game.id}
-                  onClick={() => handleAddGame(game)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '0.6rem',
-                    background: 'var(--bg-surface-2)', border: '1px solid var(--border)',
-                    borderRadius: '8px', padding: '0.5rem 0.75rem', textAlign: 'left', cursor: 'pointer',
-                  }}
-                >
-                  <span style={{ fontSize: '0.85rem' }}>{game.name}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
       {isOwner && (
         <div style={{
           background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '14px',
           padding: '1.5rem',
         }}>
-          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '1rem' }}>Colaboradores</h3>
-          <div style={{ position: 'relative', marginBottom: '1rem' }}>
-            <input
-              type="text"
-              value={collaboratorQuery}
-              onChange={e => handleCollaboratorQueryChange(e.target.value)}
-              placeholder="Buscar un jugador por nombre de usuario..."
-              style={{ width: '100%' }}
-            />
-            {collaboratorResults.length > 0 && (
-              <div style={{
-                position: 'absolute', top: 'calc(100% + 0.4rem)', left: 0, right: 0,
-                background: 'var(--bg-surface-2)', border: '1px solid var(--border)',
-                borderRadius: '8px', overflow: 'hidden', zIndex: 5,
-              }}>
-                {collaboratorResults.map(candidate => {
-                  const already = existingCollaboratorIds.has(candidate._id) || candidate._id === list.ownerId;
-                  return (
-                    <button
-                      key={candidate._id}
-                      type="button"
-                      disabled={already || collaboratorBusy}
-                      onClick={() => handleAddCollaborator(candidate)}
-                      style={{
-                        display: 'block', width: '100%', textAlign: 'left',
-                        background: 'none', border: 'none', cursor: already ? 'default' : 'pointer',
-                        padding: '0.55rem 0.75rem', fontSize: '0.85rem',
-                        color: already ? 'var(--text-faint)' : 'var(--text-primary)',
-                      }}
-                    >
-                      {candidate.username} {already ? '(ya añadido)' : ''}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ fontSize: '0.95rem', fontWeight: 700 }}>
+              Colaboradores {list.collaborators?.length ? (
+                <span style={{
+                  background: 'var(--bg-surface-2)', border: '1px solid var(--border)',
+                  borderRadius: '100px', padding: '0.1rem 0.55rem', fontSize: '0.75rem',
+                  color: 'var(--text-muted)', fontFamily: "'DM Mono', monospace", marginLeft: '0.4rem',
+                }}>
+                  {list.collaborators.length}
+                </span>
+              ) : null}
+            </h3>
+            <button
+              onClick={() => setShowAddCollaboratorModal(true)}
+              className="btn-secondary"
+              style={{ padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.85rem' }}
+            >
+              <UserPlus size={14} /> Invitar colaborador
+            </button>
           </div>
+
           {list.collaborators && list.collaborators.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               {list.collaborators.map(collab => (
                 <div key={collab.userId} style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   background: 'var(--bg-surface-2)', border: '1px solid var(--border)',
-                  borderRadius: '8px', padding: '0.5rem 0.75rem',
+                  borderRadius: '10px', padding: '0.6rem 0.9rem',
                 }}>
-                  <Link to={`/u/${collab.username}`} style={{ fontSize: '0.85rem', color: 'var(--accent-violet)', textDecoration: 'none' }}>
-                    {collab.username}
+                  <Link to={`/u/${collab.username}`} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', textDecoration: 'none' }}>
+                    <UserCircle2 size={22} color="var(--text-muted)" />
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-violet)' }}>{collab.username}</span>
                   </Link>
                   <button
                     onClick={() => handleRemoveCollaborator(collab.userId)}
                     title="Quitar colaborador"
-                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                    style={{
+                      background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)',
+                      display: 'flex', alignItems: 'center', padding: '0.3rem', borderRadius: '6px',
+                      transition: 'color 0.15s, background 0.15s',
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--accent)'; (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,59,92,0.1)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
                   >
                     <UserMinus size={14} />
                   </button>
@@ -315,8 +293,171 @@ export const ListDetailPage = () => {
               ))}
             </div>
           ) : (
-            <p style={{ color: 'var(--text-faint)', fontSize: '0.85rem' }}>No tienes colaboradores todavía.</p>
+            <p style={{ color: 'var(--text-faint)', fontSize: '0.85rem' }}>No tienes colaboradores todavía. Invita a otros jugadores para que puedan añadir juegos a esta lista.</p>
           )}
+        </div>
+      )}
+
+      {showAddGameModal && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setShowAddGameModal(false); }}
+          style={{
+            position: 'fixed', inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, backdropFilter: 'blur(10px)', padding: '1.5rem',
+            animation: 'fadeIn 0.2s ease-out',
+          }}
+        >
+          <div style={{
+            maxWidth: '480px', width: '100%', maxHeight: '85vh',
+            background: 'var(--bg-surface)', border: '1px solid var(--border-strong)',
+            borderRadius: '16px', boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            animation: 'fadeInUp 0.25s ease-out',
+          }}>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)',
+            }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Añadir juego a la lista</h3>
+              <button
+                onClick={() => setShowAddGameModal(false)}
+                style={{
+                  background: 'rgba(255,255,255,0.08)', border: '1px solid var(--border)',
+                  borderRadius: '50%', width: '30px', height: '30px', color: 'var(--text-muted)',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div style={{ padding: '1.25rem 1.5rem', overflowY: 'auto' }}>
+              <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                <input
+                  type="text"
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Buscar un juego por título..."
+                  autoFocus
+                  style={{ flex: 1 }}
+                />
+                <button type="submit" className="btn-primary" disabled={searching} style={{ padding: '0.6rem 1rem', borderRadius: '8px' }}>
+                  <Search size={14} />
+                </button>
+              </form>
+              {searching && <p style={{ color: 'var(--text-faint)', fontSize: '0.85rem' }}>Buscando…</p>}
+              {!searching && results.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {results.slice(0, 8).map(game => {
+                    const alreadyAdded = (list.games || []).some(g => String(g.rawgGameId) === String(game.id));
+                    return (
+                      <button
+                        key={game.id}
+                        onClick={() => handleAddGame(game)}
+                        disabled={alreadyAdded}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '0.75rem',
+                          background: 'var(--bg-surface-2)', border: '1px solid var(--border)',
+                          borderRadius: '10px', padding: '0.5rem 0.75rem', textAlign: 'left',
+                          cursor: alreadyAdded ? 'default' : 'pointer', opacity: alreadyAdded ? 0.5 : 1,
+                        }}
+                      >
+                        <div style={{
+                          width: '36px', height: '48px', borderRadius: '6px', flexShrink: 0,
+                          background: 'var(--bg-surface)',
+                          backgroundImage: game.background_image ? `url(${game.background_image})` : undefined,
+                          backgroundSize: 'cover', backgroundPosition: 'center',
+                        }} />
+                        <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                          {game.name} {alreadyAdded ? <span style={{ color: 'var(--text-faint)', fontWeight: 400 }}>(ya en la lista)</span> : ''}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddCollaboratorModal && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) { setShowAddCollaboratorModal(false); setCollaboratorQuery(''); setCollaboratorResults([]); } }}
+          style={{
+            position: 'fixed', inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 1000, backdropFilter: 'blur(10px)', padding: '1.5rem',
+            animation: 'fadeIn 0.2s ease-out',
+          }}
+        >
+          <div style={{
+            maxWidth: '420px', width: '100%', maxHeight: '85vh',
+            background: 'var(--bg-surface)', border: '1px solid var(--border-strong)',
+            borderRadius: '16px', boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            animation: 'fadeInUp 0.25s ease-out',
+          }}>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border)',
+            }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>Invitar colaborador</h3>
+              <button
+                onClick={() => { setShowAddCollaboratorModal(false); setCollaboratorQuery(''); setCollaboratorResults([]); }}
+                style={{
+                  background: 'rgba(255,255,255,0.08)', border: '1px solid var(--border)',
+                  borderRadius: '50%', width: '30px', height: '30px', color: 'var(--text-muted)',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div style={{ padding: '1.25rem 1.5rem', overflowY: 'auto' }}>
+              <input
+                type="text"
+                value={collaboratorQuery}
+                onChange={e => handleCollaboratorQueryChange(e.target.value)}
+                placeholder="Buscar por nombre de usuario..."
+                autoFocus
+                style={{ width: '100%', marginBottom: '1rem' }}
+              />
+              {collaboratorQuery.trim() && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {collaboratorResults.length === 0 ? (
+                    <p style={{ color: 'var(--text-faint)', fontSize: '0.85rem' }}>No se encontraron jugadores.</p>
+                  ) : (
+                    collaboratorResults.map(candidate => {
+                      const already = existingCollaboratorIds.has(candidate._id) || candidate._id === list.ownerId;
+                      return (
+                        <button
+                          key={candidate._id}
+                          type="button"
+                          disabled={already || collaboratorBusy}
+                          onClick={() => handleAddCollaborator(candidate)}
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.6rem',
+                            background: 'var(--bg-surface-2)', border: '1px solid var(--border)',
+                            borderRadius: '10px', padding: '0.55rem 0.85rem', textAlign: 'left',
+                            cursor: already ? 'default' : 'pointer', opacity: already ? 0.5 : 1,
+                          }}
+                        >
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.85rem', fontWeight: 600 }}>
+                            <UserCircle2 size={20} color="var(--text-muted)" />
+                            {candidate.username}
+                          </span>
+                          {already && <span style={{ fontSize: '0.75rem', color: 'var(--text-faint)' }}>ya añadido</span>}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

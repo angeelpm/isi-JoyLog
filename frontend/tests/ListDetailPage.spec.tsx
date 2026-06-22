@@ -70,8 +70,9 @@ describe('ListDetailPage', () => {
     renderDetail();
 
     await waitFor(() => expect(screen.getByText(/Añadir juego/i)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/Añadir juego/i));
 
-    const searchInput = screen.getByPlaceholderText(/Buscar un juego/i);
+    const searchInput = await screen.findByPlaceholderText(/Buscar un juego/i);
     fireEvent.change(searchInput, { target: { value: 'Hades' } });
     fireEvent.submit(searchInput.closest('form')!);
 
@@ -106,8 +107,10 @@ describe('ListDetailPage', () => {
     renderDetail();
 
     await waitFor(() => expect(screen.getByText('My list')).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/Invitar colaborador/i));
 
-    fireEvent.change(screen.getByPlaceholderText(/Buscar un jugador/i), { target: { value: 'bob' } });
+    const playerInput = await screen.findByPlaceholderText(/Buscar por nombre de usuario/i);
+    fireEvent.change(playerInput, { target: { value: 'bob' } });
     await waitFor(() => expect(screen.getByText('bob')).toBeInTheDocument(), { timeout: 2000 });
     fireEvent.click(screen.getByText('bob'));
 
