@@ -6,3 +6,5 @@ coverage/
 *-error.log
 *.log
 CLAUDE.md
+frontend/package-lock.json
+services/*/package-lock.json
