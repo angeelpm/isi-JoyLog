@@ -46,7 +46,7 @@ describe('MyListsSection', () => {
 
     fireEvent.click(screen.getByText('Crear lista'));
     fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'My RPGs' } });
-    fireEvent.click(screen.getByText('Crear'));
+    fireEvent.click(screen.getByRole('button', { name: 'Crear' }));
 
     await waitFor(() => {
       expect(ListAPI.create).toHaveBeenCalledWith({ title: 'My RPGs', description: '', isPublic: false });
