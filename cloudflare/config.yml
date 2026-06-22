@@ -1,7 +1,7 @@
-tunnel: <TUNNEL_UUID>
+tunnel: CLOUDFLARE_TOKEN
 credentials-file: /etc/cloudflared/credentials.json
 
 ingress:
-  - hostname: joylog.yourdomain.com
+  - hostname: HOSTNAME_URL
     service: http://frontend:80
   - service: http_status:404
