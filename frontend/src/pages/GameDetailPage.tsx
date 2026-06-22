@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { RawgAPI } from '../services/api';
+import { RawgAPI, LibraryAPI } from '../services/api';
 import { LibraryEntryModal } from '../components/LibraryEntryModal';
 import { PriceWidget } from '../components/PriceWidget';
 
@@ -9,7 +9,7 @@ export const GameDetailPage = () => {
   const [game, setGame] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [showModal, setShowModal] = useState(false);
+  const [modalGame, setModalGame] = useState<any>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -36,6 +36,24 @@ export const GameDetailPage = () => {
   const platforms: string[] = game.platforms?.map((p: any) => p.platform.name) || [];
   const genres: string[] = game.genres?.map((g: any) => g.name) || [];
 
+  const handleOpenModal = async () => {
+    const baseGame = {
+      rawgGameId: game.id,
+      title: game.name,
+      coverImage: game.background_image,
+      platforms,
+      genres,
+      status: 'wishlist',
+    };
+    try {
+      const { data } = await LibraryAPI.getEntryByRawgId(game.id);
+      setModalGame(data.entry ? { ...baseGame, ...data.entry, _id: data.entry._id } : baseGame);
+    } catch (err) {
+      console.error('Failed to fetch existing library entry', err);
+      setModalGame(baseGame);
+    }
+  };
+
   return (
     <div className="page-container">
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem' }}>
@@ -51,7 +69,7 @@ export const GameDetailPage = () => {
           />
           <button
             className="btn-primary"
-            onClick={() => setShowModal(true)}
+            onClick={handleOpenModal}
             style={{ width: '100%', padding: '0.8rem', borderRadius: '10px' }}
           >
             Añadir / editar en mi librería
@@ -106,18 +124,11 @@ export const GameDetailPage = () => {
         </div>
       </div>
 
-      {showModal && (
+      {modalGame && (
         <LibraryEntryModal
-          game={{
-            rawgGameId: game.id,
-            title: game.name,
-            coverImage: game.background_image,
-            platforms,
-            genres,
-            status: 'wishlist',
-          }}
-          onClose={() => setShowModal(false)}
-          onUpdated={() => setShowModal(false)}
+          game={modalGame}
+          onClose={() => setModalGame(null)}
+          onUpdated={() => setModalGame(null)}
         />
       )}
     </div>

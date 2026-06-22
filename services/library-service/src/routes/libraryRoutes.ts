@@ -7,6 +7,7 @@ import {
     deleteGame,
     getStats,
     getGameReviews,
+    getGameEntryByRawgId,
     getPublicStats,
     likeReviewLog,
     unlikeReviewLog,
@@ -47,6 +48,7 @@ router.get('/lists/:listId', optionalAuthMiddleware, getGameList);
 router.use(authMiddleware);
 
 router.get('/', getLibrary);
+router.get('/by-rawg/:rawgGameId', getGameEntryByRawgId);
 router.post('/', addGame);
 router.get('/stats', getStats);
 router.put('/:id', updateGame);

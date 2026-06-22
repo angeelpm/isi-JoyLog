@@ -26,6 +26,20 @@ export const getLibrary = async (req: AuthRequest, res: Response): Promise<void>
     }
 };
 
+// GET /by-rawg/:rawgGameId - Get the current user's existing entry for a RAWG game, if any.
+// Lets the frontend show a single game as one entity (status/rating/hours/logs)
+// regardless of whether the user reached it from search, a game detail page, or their library.
+export const getGameEntryByRawgId = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { rawgGameId } = req.params;
+        const entry = await GameEntry.findOne({ userId: req.userId, rawgGameId: Number(rawgGameId) });
+        res.json({ entry: entry || null });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching game entry' });
+    }
+};
+
 // POST / - Add game to library
 export const addGame = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
