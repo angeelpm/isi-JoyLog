@@ -1,0 +1,7 @@
+tunnel: 367a8cb0-247d-41db-b762-be931f221040 #Change this to your public tunnel UUID
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  - hostname: joylog.deushicest.org #Change this to your domain name
+    service: http://frontend:80
+  - service: http_status:404

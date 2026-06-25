@@ -10,4 +10,9 @@ COPY frontend/package.json ./frontend/
 
 RUN npm install
 
+COPY services/library-service/ ./services/library-service/
+COPY shared/ ./shared/
+
 EXPOSE 3002
+
+CMD ["npm", "run", "dev", "--workspace=library-service"]

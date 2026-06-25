@@ -91,6 +91,7 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+      target: builder
     container_name: joylog_frontend
     ports:
       - "5173:5173"

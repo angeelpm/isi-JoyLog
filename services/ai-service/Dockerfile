@@ -10,4 +10,9 @@ COPY frontend/package.json ./frontend/
 
 RUN npm install
 
+COPY services/ai-service/ ./services/ai-service/
+COPY shared/ ./shared/
+
 EXPOSE 3003
+
+CMD ["npm", "run", "dev", "--workspace=ai-service"]
