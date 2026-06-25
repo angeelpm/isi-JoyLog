@@ -6,6 +6,241 @@ Deploy JoyLog on a home server and expose it publicly via a Cloudflare Tunnel, u
 
 ---
 
+## Zero-to-Working: Dev Setup Guide
+
+Step-by-step instructions to run JoyLog locally for development.
+
+### Prerequisites
+
+- **Docker** and **Docker Compose** (v2) installed
+- **Git** installed
+- API keys for RAWG, ITAD, Gemini AI-Service
+
+---
+
+### Step 1 — Clone the repository
+
+```bash
+git clone https://github.com/angeelpm/isi-JoyLog.git
+cd isi-JoyLog
+```
+
+---
+
+### Step 2 — Create the `.env` file
+
+```env
+RAWG_API_KEY=<your_rawg_api_key>
+ITAD_API_KEY=<your_itad_api_key>
+GEMINI_API_KEY=<your_gemini_api_key>
+JWT_SECRET=any_random_string_for_local
+VITE_API_URL=http://localhost:3000
+```
+
+> For dev, `VITE_API_URL` must point to `localhost:3000` (the API gateway on your machine).
+
+---
+
+### Step 3 — Start the dev stack
+
+```bash
+make dev-up
+```
+
+Builds all images and starts them in the background. First run takes ~2-3 minutes while Docker downloads base images and installs npm packages.
+
+Services started:
+| Container | Port | What it is |
+|---|---|---|
+| `joylog_frontend` | http://localhost:5173 | React app (Vite dev server, hot reload) |
+| `joylog_api_gateway` | http://localhost:3000 | API gateway |
+| `joylog_auth_service` | http://localhost:3001 | Auth service |
+| `joylog_library_service` | http://localhost:3002 | Library service |
+| `joylog_ai_service` | http://localhost:3003 | AI service |
+| `joylog_mongo` | localhost:27018 | MongoDB |
+
+---
+
+### Step 4 — Verify everything is running
+
+```bash
+make dev-ps     # all containers should show "Up"
+make dev-logs   # follow live logs from all services
+```
+
+Then open **http://localhost:5173** in a browser.
+
+---
+
+### Step 5 — Rebuild after code changes
+
+Most code changes are picked up automatically by the Vite dev server (hot reload). If you change a backend service or add new npm packages, rebuild:
+
+```bash
+make dev-rebuild
+# Equivalent to: make dev-down && make dev-up
+```
+
+---
+
+### Stop the stack
+
+```bash
+make dev-down
+```
+
+---
+
+### Troubleshooting (dev)
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Frontend container exits immediately | Wrong Dockerfile stage (nginx instead of node) | Confirm `docker-compose.yml` frontend build has `target: builder` |
+| API calls return 401 | JWT_SECRET missing or wrong | Check `.env` has `JWT_SECRET` set |
+| Port 5173 already in use | Another process using the port | Stop it or change the port in `docker-compose.yml` |
+| Changes not reflected after edit | Backend service needs rebuild | `make dev-rebuild` |
+| MongoDB connection refused | Mongo container not ready yet | Wait a few seconds and retry; or check `make dev-logs` |
+
+---
+
+## Zero-to-Working: Production Setup Guide
+
+Step-by-step instructions to go from a fresh clone to a publicly accessible JoyLog instance.
+
+### Prerequisites
+
+Before starting, make sure the server has:
+
+- **Docker** and **Docker Compose** (v2) installed
+- **Git** installed
+- A **Cloudflare account** with a domain added (Zero Trust plan — free tier works)
+- API keys for: RAWG, IsThereAnyDeal (ITAD), Gemini (AI service), and a strong random string for JWT_SECRET
+
+---
+
+### Step 1 — Clone the repository
+
+```bash
+git clone https://github.com/angeelpm/isi-JoyLog.git
+cd isi-JoyLog
+```
+
+---
+
+### Step 2 — Create the `.env` file
+
+Copy the template and fill in the real values:
+
+```bash
+cp .env.example .env   # or create it from scratch
+```
+
+`.env` must contain (at repo root):
+
+```env
+RAWG_API_KEY=<your_rawg_api_key>
+ITAD_API_KEY=<your_itad_api_key>
+GEMINI_API_KEY=<your_gemini_api_key>
+JWT_SECRET=<long_random_string>
+VITE_API_URL=https://joylog.deushicest.org
+```
+
+> `VITE_API_URL` is baked into the React bundle at build time — it must be the public URL of the site.
+
+---
+
+### Step 3 — Set up the Cloudflare Tunnel (one-time)
+
+This step is only needed on a fresh machine. If `cloudflare/credentials.json` already exists, skip to Step 4.
+
+**3a. Install `cloudflared`**
+
+```bash
+# Debian/Ubuntu
+curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | sudo gpg --dearmor -o /usr/share/keyrings/cloudflare-main.gpg
+echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/cloudflared.list
+sudo apt update && sudo apt install cloudflared
+```
+
+**3b. Log in to Cloudflare**
+
+```bash
+cloudflared tunnel login
+# Opens a browser. Authorize the domain joylog.deushicest.org.
+```
+
+**3c. The tunnel already exists** — just copy its credentials:
+
+```bash
+# Tunnel ID: 367a8cb0-247d-41db-b762-be931f221040
+cp ~/.cloudflared/367a8cb0-247d-41db-b762-be931f221040.json cloudflare/credentials.json
+```
+
+> If you need to create a new tunnel from scratch: `cloudflared tunnel create joylog`
+> Then update `cloudflare/config.yml` with the new tunnel UUID and add the CNAME in Cloudflare DNS.
+
+**3d. Verify the credentials file is in place:**
+
+```bash
+make check
+# Should print: OK: .env and cloudflare/credentials.json present.
+```
+
+---
+
+### Step 4 — Build and start the production stack
+
+```bash
+make prod-up
+```
+
+This runs `docker compose -f docker-compose.prod.yml up --build -d` — builds all images and starts them in the background.
+
+First build takes ~2-3 minutes. Subsequent builds use Docker cache and are much faster.
+
+---
+
+### Step 5 — Verify everything is running
+
+```bash
+make prod-ps       # all containers should show "Up"
+make prod-logs     # follow live logs from all services
+make tunnel-logs   # check the Cloudflare tunnel specifically
+```
+
+Expected output from `tunnel-logs` when healthy:
+```
+INF Connection ... registered connIndex=0 ...
+INF Connection ... registered connIndex=1 ...
+```
+
+Then open **https://joylog.deushicest.org** in a browser. The app should load.
+
+---
+
+### Step 6 — Re-deploy after code changes
+
+```bash
+git pull
+make prod-rebuild
+# Equivalent to: make prod-down && make prod-up
+```
+
+---
+
+### Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `make check` fails on credentials | `cloudflare/credentials.json` missing | Repeat Step 3c |
+| `make check` fails on `.env` | `.env` not created | Repeat Step 2 |
+| Tunnel logs show `failed to authenticate` | Wrong credentials file (wrong tunnel ID) | Re-run Step 3b–3c |
+| App loads but API calls fail (404/502) | `VITE_API_URL` wrong or nginx misconfigured | Check `.env` has correct URL, then `make prod-rebuild` |
+| Container exits immediately | Missing env variable | `make prod-logs` to find which service, check `.env` |
+| Port 80 already in use | Another service on the host uses port 80 | Stop it, or change the port mapping in `docker-compose.prod.yml` |
+
+---
+
 ## Architecture
 
 ```
