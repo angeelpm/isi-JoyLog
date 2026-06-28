@@ -184,11 +184,12 @@ Single workflow: `.github/workflows/ci.yml`, triggered on every `push` and `pull
 
 **Job `test`:**
 1. `npm install` (root, installs all workspaces)
-2. `npm test --workspace=auth-service`
-3. `npm test --workspace=library-service`
-4. `npm test --workspace=joylog-frontend` (Vitest)
-5. `npm run lint --workspace=joylog-frontend` (ESLint)
-6. `npm run build --workspace=joylog-frontend` (TypeScript + Vite build)
+2. `npm test --workspace=ai-service`
+3. `npm test --workspace=auth-service`
+4. `npm test --workspace=library-service`
+5. `npm test --workspace=joylog-frontend` (Vitest)
+6. `npm run lint --workspace=joylog-frontend` (ESLint)
+7. `npm run build --workspace=joylog-frontend` (TypeScript + Vite build)
 
 **Job `docker`** (runs after `test`, only if it passes):
 - Creates a `.env` with placeholder values (`ci_placeholder`) — never uses real secrets in CI.
@@ -211,3 +212,72 @@ VITE_API_URL=...   # frontend axios base URL (defaults to http://localhost:3000)
 ```
 
 Ask the project owner for real keys privately — they are never shared in commits or PRs.
+
+---
+
+## 10. Requirements & features checklist
+
+Complete checklist of project requirements and features with their implementation status. `true` = implemented and present in the codebase; `false` = not implemented. Derived from the actual service routes, controllers and frontend pages on `develop`.
+
+### Authentication & users
+| Feature | Status |
+|---|---|
+| User registration | `true` |
+| Login with JWT | `true` |
+| Get own profile (`/v1/auth/me`) | `true` |
+| Update own profile (bio, favorite games, avatar) | `true` |
+| Search users by username | `true` |
+| Public user profiles | `true` |
+| Follow / unfollow users | `true` |
+| Followers & following lists | `true` |
+| Password reset / forgot password | `false` |
+| Email verification | `false` |
+
+### Game library
+| Feature | Status |
+|---|---|
+| Add a game to the library | `true` |
+| List library filtered by status (playing / completed / dropped / wishlist) | `true` |
+| Update an entry (status, rating, hours, review logs) | `true` |
+| Delete an entry | `true` |
+| One entry per game per user (unique `(userId, rawgGameId)` index) | `true` |
+| Look up an entry by RAWG id | `true` |
+| Personal aggregate stats | `true` |
+| Another user's public stats | `true` |
+
+### Reviews & social interaction
+| Feature | Status |
+|---|---|
+| Write reviews (review logs) | `true` |
+| Community reviews per game | `true` |
+| Like / unlike reviews | `true` |
+| Comments on reviews | `true` |
+| Activity feed of followed users | `true` |
+| Games in common with another user | `true` |
+| Real-time notifications | `false` |
+
+### Game lists
+| Feature | Status |
+|---|---|
+| Create / update / delete lists | `true` |
+| Public & private lists | `true` |
+| Add / remove games in a list | `true` |
+| Collaborative lists (add / remove collaborators) | `true` |
+
+### External integrations
+| Feature | Status |
+|---|---|
+| RAWG game search & details (gateway proxy, key injected) | `true` |
+| ITAD live price lookup (public, no auth) | `true` |
+| AI game recommendations (Gemini via `ai-service`) | `true` |
+
+### Platform & infrastructure
+| Feature | Status |
+|---|---|
+| API gateway reverse proxy | `true` |
+| API versioning under `/v1` | `true` |
+| JWT auth middleware (+ optional auth for public-with-context routes) | `true` |
+| Docker Compose orchestration (dev & prod) | `true` |
+| nginx reverse proxy + SPA serving | `true` |
+| Cloudflare tunnel deployment | `true` |
+| CI pipeline (tests + lint + build + docker build) | `true` |
