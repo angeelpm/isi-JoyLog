@@ -11,7 +11,7 @@ app.use(express.json());
 // Routes
 app.use('/', libraryRoutes);
 
-app.get('/api/library/health', (req, res) => {
+app.get('/v1/library/health', (req, res) => {
     res.json({ status: 'Library service is running' });
 });
 

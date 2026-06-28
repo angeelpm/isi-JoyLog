@@ -11,7 +11,7 @@ app.use(express.json());
 // Main entry
 app.use('/', authRoutes);
 
-app.get('/api/auth/health', (req, res) => {
+app.get('/v1/auth/health', (req, res) => {
     res.json({ status: 'Auth service is running' });
 });
 

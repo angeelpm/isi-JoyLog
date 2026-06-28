@@ -15,7 +15,7 @@ export const LoginPage = () => {
     e.preventDefault();
     setError('');
     try {
-      const response = await api.post('/api/auth/login', { usernameOrEmail, password });
+      const response = await api.post('/v1/auth/login', { usernameOrEmail, password });
       login(response.data.token, response.data.user);
       navigate('/');
     } catch (err) {

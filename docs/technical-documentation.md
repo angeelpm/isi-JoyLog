@@ -39,13 +39,13 @@ backend.
                        ┌─────────────┐
    Browser  ───────▶   │  frontend   │  React SPA (dev: Vite :5173 / prod: nginx :80)
                        └──────┬──────┘
-                              │  /api/*
+                              │  /v1/*
                        ┌──────▼──────────┐
                        │   api-gateway   │  :3000  reverse proxy
                        └──┬───┬───┬───┬──┘
-        /api/auth ────────┘   │   │   └──────── /api/games  ──▶  RAWG (external, key injected)
+        /v1/auth ────────┘   │   │   └──────── /v1/games  ──▶  RAWG (external, key injected)
                               │   │
-        /api/library ─────────┘   └──── /api/ai
+        /v1/library ─────────┘   └──── /v1/ai
                  │                        │
         ┌────────▼───────┐       ┌────────▼───────┐       ┌────────────────┐
         │  auth-service  │       │ library-service│       │   ai-service   │
@@ -64,10 +64,10 @@ backend.
 1. The frontend sends all requests to the API gateway (`VITE_API_URL`, default
    `http://localhost:3000`).
 2. The gateway routes by path prefix and **strips the prefix** before forwarding:
-   - `/api/auth/*`   → `auth-service:3001` (prefix removed)
-   - `/api/library/*` → `library-service:3002` (prefix removed)
-   - `/api/ai/*`     → `ai-service:3003` (prefix removed)
-   - `/api/games/*`  → `https://api.rawg.io/api` (prefix removed, `key` query param injected)
+   - `/v1/auth/*`   → `auth-service:3001` (prefix removed)
+   - `/v1/library/*` → `library-service:3002` (prefix removed)
+   - `/v1/ai/*`     → `ai-service:3003` (prefix removed)
+   - `/v1/games/*`  → `https://api.rawg.io/api` (prefix removed, `key` query param injected)
 3. Services validate the JWT (`Authorization: Bearer <token>`) on protected routes.
 
 > ⚠️ **Gateway gotcha:** in `services/api-gateway/index.ts`, the `createProxyMiddleware`
@@ -80,7 +80,7 @@ backend.
 - On register/login, `auth-service` returns `{ message, token, user }`. The frontend
   stores the JWT in `localStorage`.
 - `AuthContext` (`frontend/src/context/AuthContext.tsx`) reads the token on mount and
-  validates it against `GET /api/auth/me`.
+  validates it against `GET /v1/auth/me`.
 - The Axios instance (`frontend/src/services/api.ts`) attaches the token via a request
   interceptor on every call.
 - Backend middleware: `authMiddleware` (rejects without a valid token) and
@@ -93,7 +93,7 @@ backend.
 
 ### api-gateway (`:3000`)
 Reverse proxy and single public entry point. No database. Injects the RAWG API key into
-`/api/games/*` requests. CORS is restricted to the frontend origins. Exposes
+`/v1/games/*` requests. CORS is restricted to the frontend origins. Exposes
 `GET /health`.
 - **Env:** `PORT` (3000), `RAWG_API_KEY`
 - **Entry:** `services/api-gateway/index.ts`
@@ -197,36 +197,36 @@ Indexes: unique `{ likerId, reviewLogId }` (one like per user per review log) an
 ## 5. API reference
 
 All paths are **public-facing** (through the gateway). The gateway strips the
-`/api/<service>` prefix before forwarding. **Auth** column: 🔒 requires a valid JWT,
+`/v1/<service>` prefix before forwarding. **Auth** column: 🔒 requires a valid JWT,
 🔓 public, ◐ optional (personalizes response if a token is present).
 
 ### 5.1 Auth & profile — `auth-service`
 
 | Method | Path | Auth | Purpose |
 |---|---|:--:|---|
-| POST | `/api/auth/register` | 🔓 | Create account |
-| POST | `/api/auth/login` | 🔓 | Log in |
-| GET | `/api/auth/me` | 🔒 | Current user's profile |
-| PUT | `/api/auth/me` | 🔒 | Update own profile (bio, favoriteGames, …) |
+| POST | `/v1/auth/register` | 🔓 | Create account |
+| POST | `/v1/auth/login` | 🔓 | Log in |
+| GET | `/v1/auth/me` | 🔒 | Current user's profile |
+| PUT | `/v1/auth/me` | 🔒 | Update own profile (bio, favoriteGames, …) |
 
-**POST `/api/auth/register`** — body `{ username, email, password }` → `201`
+**POST `/v1/auth/register`** — body `{ username, email, password }` → `201`
 `{ message, token, user }`.
 
-**POST `/api/auth/login`** — body `{ email, password }` → `200` `{ message, token, user }`.
+**POST `/v1/auth/login`** — body `{ email, password }` → `200` `{ message, token, user }`.
 
-**PUT `/api/auth/me`** — body any subset of `{ bio, favoriteGames, avatarUrl }` → updated
+**PUT `/v1/auth/me`** — body any subset of `{ bio, favoriteGames, avatarUrl }` → updated
 `{ user }`.
 
 ### 5.2 Social graph — `auth-service`
 
 | Method | Path | Auth | Purpose |
 |---|---|:--:|---|
-| GET | `/api/auth/users/search?q=<term>` | ◐ | Search users by username → `{ users: [{ _id, username, avatarUrl? }] }` |
-| GET | `/api/auth/users/:username` | ◐ | Public profile → `{ _id, username, bio, followersCount, followingCount, isFollowing, favoriteGames }` |
-| POST | `/api/auth/users/:userId/follow` | 🔒 | Follow a user |
-| DELETE | `/api/auth/users/:userId/follow` | 🔒 | Unfollow a user |
-| GET | `/api/auth/users/:userId/followers` | 🔒 | List followers |
-| GET | `/api/auth/users/:userId/following` | 🔒 | List following → `[{ _id, username }]` |
+| GET | `/v1/auth/users/search?q=<term>` | ◐ | Search users by username → `{ users: [{ _id, username, avatarUrl? }] }` |
+| GET | `/v1/auth/users/:username` | ◐ | Public profile → `{ _id, username, bio, followersCount, followingCount, isFollowing, favoriteGames }` |
+| POST | `/v1/auth/users/:userId/follow` | 🔒 | Follow a user |
+| DELETE | `/v1/auth/users/:userId/follow` | 🔒 | Unfollow a user |
+| GET | `/v1/auth/users/:userId/followers` | 🔒 | List followers |
+| GET | `/v1/auth/users/:userId/following` | 🔒 | List following → `[{ _id, username }]` |
 
 > Route order matters: `/users/search` is declared before `/users/:username` so the literal
 > path isn't captured as a username param.
@@ -235,17 +235,17 @@ All paths are **public-facing** (through the gateway). The gateway strips the
 
 | Method | Path | Auth | Purpose |
 |---|---|:--:|---|
-| GET | `/api/library?status=<all\|status>` | 🔒 | List the user's entries → `{ entries }` |
-| POST | `/api/library` | 🔒 | Add a game entry → created entry |
-| PUT | `/api/library/:id` | 🔒 | Update an entry (status/rating/hours/reviewLogs) |
-| DELETE | `/api/library/:id` | 🔒 | Remove an entry |
-| GET | `/api/library/stats` | 🔒 | Own aggregate stats → `{ stats }` |
-| GET | `/api/library/stats/public/:userId` | 🔓 | Another user's stats → `{ stats }` |
+| GET | `/v1/library?status=<all\|status>` | 🔒 | List the user's entries → `{ entries }` |
+| POST | `/v1/library` | 🔒 | Add a game entry → created entry |
+| PUT | `/v1/library/:id` | 🔒 | Update an entry (status/rating/hours/reviewLogs) |
+| DELETE | `/v1/library/:id` | 🔒 | Remove an entry |
+| GET | `/v1/library/stats` | 🔒 | Own aggregate stats → `{ stats }` |
+| GET | `/v1/library/stats/public/:userId` | 🔓 | Another user's stats → `{ stats }` |
 
 **Stats shape** (`ILibraryStats`): `{ total, playing, completed, backlog, dropped,
 wishlist, totalHoursPlayed, avgRating? }`.
 
-**POST `/api/library`** — body (`IGameEntryInput`):
+**POST `/v1/library`** — body (`IGameEntryInput`):
 `{ rawgGameId, title, coverImage, status, rating?, hoursPlayed?, platforms?, genres? }`.
 Adding a duplicate game returns a duplicate-key error.
 
@@ -253,19 +253,19 @@ Adding a duplicate game returns a duplicate-key error.
 
 | Method | Path | Auth | Purpose |
 |---|---|:--:|---|
-| GET | `/api/library/reviews/:rawgGameId` | ◐ | Community reviews for a game → `{ reviews }` (each: `ICommunityReview` with `isCurrentUser`, `likeCount`, `isLikedByMe`, `commentCount`) |
-| POST | `/api/library/likes` | 🔒 | Like a review log — body `{ gameEntryId, reviewLogId }` |
-| DELETE | `/api/library/likes/:reviewLogId` | 🔒 | Unlike a review log |
-| GET | `/api/library/comments/:reviewLogId` | 🔓 | Comments for a review log → `{ comments }` |
-| POST | `/api/library/comments` | 🔒 | Add a comment — body `{ gameEntryId, reviewLogId, text }` → `{ comment }` |
-| DELETE | `/api/library/comments/:commentId` | 🔒 | Delete own comment |
+| GET | `/v1/library/reviews/:rawgGameId` | ◐ | Community reviews for a game → `{ reviews }` (each: `ICommunityReview` with `isCurrentUser`, `likeCount`, `isLikedByMe`, `commentCount`) |
+| POST | `/v1/library/likes` | 🔒 | Like a review log — body `{ gameEntryId, reviewLogId }` |
+| DELETE | `/v1/library/likes/:reviewLogId` | 🔒 | Unlike a review log |
+| GET | `/v1/library/comments/:reviewLogId` | 🔓 | Comments for a review log → `{ comments }` |
+| POST | `/v1/library/comments` | 🔒 | Add a comment — body `{ gameEntryId, reviewLogId, text }` → `{ comment }` |
+| DELETE | `/v1/library/comments/:commentId` | 🔒 | Delete own comment |
 
 ### 5.5 Feed & discovery — `library-service`
 
 | Method | Path | Auth | Purpose |
 |---|---|:--:|---|
-| GET | `/api/library/feed?userIds=<csv>&page=<n>` | 🔒 | Activity feed of the given users → `{ items, page, hasMore }` |
-| GET | `/api/library/common/:otherUserId` | 🔒 | Games in common with another user → `{ commonGames }` |
+| GET | `/v1/library/feed?userIds=<csv>&page=<n>` | 🔒 | Activity feed of the given users → `{ items, page, hasMore }` |
+| GET | `/v1/library/common/:otherUserId` | 🔒 | Games in common with another user → `{ commonGames }` |
 
 **Feed item** (`FeedItem`): `{ username, rawgGameId, title, coverImage?, type:
 'review'|'completed', text?, rating?, createdAt, gameEntryId, reviewLogId? }`.
@@ -274,16 +274,16 @@ Adding a duplicate game returns a duplicate-key error.
 
 | Method | Path | Auth | Purpose |
 |---|---|:--:|---|
-| GET | `/api/library/lists/mine` | 🔒 | Lists owned by or shared with the user |
-| GET | `/api/library/lists/user/:userId` | 🔓 | A user's public lists |
-| GET | `/api/library/lists/:listId` | ◐ | One list (403 if private & not a member) |
-| POST | `/api/library/lists` | 🔒 | Create — body `{ title, description?, isPublic }` |
-| PUT | `/api/library/lists/:listId` | 🔒 | Update list metadata |
-| DELETE | `/api/library/lists/:listId` | 🔒 | Delete (owner only) |
-| POST | `/api/library/lists/:listId/games` | 🔒 | Add game — body `{ rawgGameId, title, coverImage? }` |
-| DELETE | `/api/library/lists/:listId/games/:rawgGameId` | 🔒 | Remove game |
-| POST | `/api/library/lists/:listId/collaborators` | 🔒 | Add collaborator — body `{ userId, username }` |
-| DELETE | `/api/library/lists/:listId/collaborators/:userId` | 🔒 | Remove collaborator |
+| GET | `/v1/library/lists/mine` | 🔒 | Lists owned by or shared with the user |
+| GET | `/v1/library/lists/user/:userId` | 🔓 | A user's public lists |
+| GET | `/v1/library/lists/:listId` | ◐ | One list (403 if private & not a member) |
+| POST | `/v1/library/lists` | 🔒 | Create — body `{ title, description?, isPublic }` |
+| PUT | `/v1/library/lists/:listId` | 🔒 | Update list metadata |
+| DELETE | `/v1/library/lists/:listId` | 🔒 | Delete (owner only) |
+| POST | `/v1/library/lists/:listId/games` | 🔒 | Add game — body `{ rawgGameId, title, coverImage? }` |
+| DELETE | `/v1/library/lists/:listId/games/:rawgGameId` | 🔒 | Remove game |
+| POST | `/v1/library/lists/:listId/collaborators` | 🔒 | Add collaborator — body `{ userId, username }` |
+| DELETE | `/v1/library/lists/:listId/collaborators/:userId` | 🔒 | Remove collaborator |
 
 All list mutations return `{ list }`. Adding/removing games is allowed for the owner and
 collaborators; managing collaborators and deletion are owner-only.
@@ -292,7 +292,7 @@ collaborators; managing collaborators and deletion are owner-only.
 
 | Method | Path | Auth | Purpose |
 |---|---|:--:|---|
-| GET | `/api/library/prices?title=<game title>` | 🔓 | Best current price via ITAD |
+| GET | `/v1/library/prices?title=<game title>` | 🔓 | Best current price via ITAD |
 
 This is the **only** library route that does not require authentication.
 
@@ -300,7 +300,7 @@ This is the **only** library route that does not require authentication.
 
 | Method | Path | Auth | Purpose |
 |---|---|:--:|---|
-| POST | `/api/ai/recommendations` | 🔓 | Gemini-generated recommendations (rate-limited 5/min) |
+| POST | `/v1/ai/recommendations` | 🔓 | Gemini-generated recommendations (rate-limited 5/min) |
 
 **Body:** `{ mode: 'theme' | 'library', theme?, userStats?: { topGenres?, recentGames?,
 totalCompleted? } }`. **Response:** a JSON array of exactly 5 objects
@@ -311,11 +311,11 @@ totalCompleted? } }`. **Response:** a JSON array of exactly 5 objects
 
 | Method | Path | Auth | Purpose |
 |---|---|:--:|---|
-| GET | `/api/games/games?search=&genres=&page=` | 🔓 | Search games (RAWG passthrough, key injected) |
-| GET | `/api/games/games/:id` | 🔓 | Game details |
+| GET | `/v1/games/games?search=&genres=&page=` | 🔓 | Search games (RAWG passthrough, key injected) |
+| GET | `/v1/games/games/:id` | 🔓 | Game details |
 
-The gateway forwards anything under `/api/games` to `https://api.rawg.io/api`, so the
-double `games` segment is expected (`/api/games` → RAWG base, then `/games` is RAWG's
+The gateway forwards anything under `/v1/games` to `https://api.rawg.io/api`, so the
+double `games` segment is expected (`/v1/games` → RAWG base, then `/games` is RAWG's
 endpoint).
 
 ---
@@ -388,7 +388,7 @@ Production runs on a home server, exposed publicly via a Cloudflare Tunnel. See
 
 - `docker-compose.prod.yml` — source baked into images (no bind mounts), `restart:
   unless-stopped`, no host ports published; the frontend is served by **nginx**
-  (`nginx/nginx.conf`) which reverse-proxies `/api/` to the gateway and serves the built
+  (`nginx/nginx.conf`) which reverse-proxies `/v1/` to the gateway and serves the built
   SPA. `cloudflared` provides public ingress.
 - `cloudflare/config.yml` routes the public hostname → `frontend:80`; `credentials.json`
   is gitignored and must be readable by the container (`chmod 644`).
@@ -405,7 +405,7 @@ Root `.env` (gitignored), consumed by Docker Compose:
 
 | Variable | Used by | Purpose |
 |---|---|---|
-| `RAWG_API_KEY` | api-gateway | Injected into all `/api/games/*` requests |
+| `RAWG_API_KEY` | api-gateway | Injected into all `/v1/games/*` requests |
 | `ITAD_API_KEY` | library-service | IsThereAnyDeal price lookups |
 | `GEMINI_API_KEY` | ai-service | Google Gemini recommendations |
 | `JWT_SECRET` | auth-service, library-service | Signs/verifies JWTs (must match across both) |
