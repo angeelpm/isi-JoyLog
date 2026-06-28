@@ -4,6 +4,8 @@ import { Plus, Gamepad2 } from 'lucide-react';
 import { LibraryAPI } from '../services/api';
 import { GameCard } from '../components/GameCard';
 import { LibraryEntryModal } from '../components/LibraryEntryModal';
+import { AIRecommendationsWidget } from '../components/AIRecommendationsWidget';
+import { MyListsSection } from '../components/MyListsSection';
 
 const StatCard = ({
   label,
@@ -110,6 +112,16 @@ export const DashboardPage = () => {
         <StatCard label="Hours Played"     value={stats?.totalHoursPlayed ?? 0} color="var(--accent-amber)"     delay="0.2s"  />
       </div>
 
+      {/* AI Recommendations */}
+      <AIRecommendationsWidget
+        userStats={{
+          topGenres: stats?.topGenres ?? [],
+          recentGames: recentGames.map((g: any) => g.title),
+          totalCompleted: stats?.completed ?? 0,
+        }}
+        onGameSelect={(game) => setSelectedGame(game)}
+      />
+
       {/* Recently Added */}
       <div>
         <div style={{
@@ -159,6 +171,8 @@ export const DashboardPage = () => {
           </div>
         )}
       </div>
+
+      <MyListsSection />
 
       {selectedGame && (
         <LibraryEntryModal

@@ -1,6 +1,7 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import type { ReactNode } from 'react';
 import { AuthAPI } from '../services/api';
+import type { FavoriteGame } from '../services/api';
 
 interface User {
   id: string;
@@ -8,6 +9,7 @@ interface User {
   email: string;
   avatarUrl?: string;
   bio?: string;
+  favoriteGames?: FavoriteGame[];
 }
 
 interface AuthContextType {
@@ -33,6 +35,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
 
+  const logout = () => {
+    localStorage.removeItem('token');
+    setToken(null);
+    setUser(null);
+  };
+
+  const login = (newToken: string, userData: User) => {
+    localStorage.setItem('token', newToken);
+    setToken(newToken);
+    setUser(userData);
+  };
+
   useEffect(() => {
     const fetchUser = async () => {
       if (token) {
@@ -41,7 +55,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUser(data.user);
         } catch (error) {
           console.error('Error fetching profile', error);
-          logout(); // token invalid
+          logout();
         }
       }
       setLoading(false);
@@ -49,18 +63,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     fetchUser();
   }, [token]);
-
-  const login = (newToken: string, userData: User) => {
-    localStorage.setItem('token', newToken);
-    setToken(newToken);
-    setUser(userData);
-  };
-
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
-  };
 
   return (
     <AuthContext.Provider value={{ user, token, login, logout, loading }}>

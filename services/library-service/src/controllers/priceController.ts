@@ -31,21 +31,15 @@ interface ITADDeal {
     url: string;
 }
 
-interface ITADHistoryLow {
-    all: ITADPrice;
-    y1: ITADPrice;
-    m3: ITADPrice;
-}
-
 interface ITADPricesResponseItem {
     id: string;
     deals: ITADDeal[];
-    historyLow: ITADHistoryLow | null;
+    historyLow: ITADPrice | null;
 }
 
 // GET /prices?title=<game title>
 export const getGamePrices = async (req: Request, res: Response): Promise<void> => {
-    const { title, country = 'ES' } = req.query;
+    const { title, country = 'US' } = req.query;
 
     // --- Validation ---
     if (!title || typeof title !== 'string' || title.trim() === '') {
@@ -168,10 +162,10 @@ export const getGamePrices = async (req: Request, res: Response): Promise<void> 
             drm: deal.drm.map((d) => d.name),
             platforms: deal.platforms.map((p) => p.name),
         })),
-        historyLow: priceData.historyLow?.all
+        historyLow: priceData.historyLow?.amount != null
             ? {
-                amount: priceData.historyLow.all.amount,
-                currency: priceData.historyLow.all.currency,
+                amount: priceData.historyLow.amount,
+                currency: priceData.historyLow.currency,
             }
             : null,
     });

@@ -5,8 +5,14 @@ COPY package.json package-lock.json* ./
 COPY services/api-gateway/package.json ./services/api-gateway/
 COPY services/auth-service/package.json ./services/auth-service/
 COPY services/library-service/package.json ./services/library-service/
+COPY services/ai-service/package.json ./services/ai-service/
 COPY frontend/package.json ./frontend/
 
 RUN npm install
 
+COPY services/library-service/ ./services/library-service/
+COPY shared/ ./shared/
+
 EXPOSE 3002
+
+CMD ["npm", "run", "dev", "--workspace=library-service"]

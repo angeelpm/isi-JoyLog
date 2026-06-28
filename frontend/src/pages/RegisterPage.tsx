@@ -16,7 +16,7 @@ export const RegisterPage = () => {
     e.preventDefault();
     setError('');
     try {
-      const response = await api.post('/api/auth/register', { username, email, password });
+      const response = await api.post('/v1/auth/register', { username, email, password });
       login(response.data.token, response.data.user);
       navigate('/');
     } catch (err) {

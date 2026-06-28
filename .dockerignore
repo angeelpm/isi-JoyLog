@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+.git
+.gitignore
+.env
+*.env
+frontend/dist
+**/dist
+coverage
+**/coverage
+*.log
+cloudflare/credentials.json

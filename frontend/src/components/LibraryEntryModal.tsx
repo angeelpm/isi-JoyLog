@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import { LibraryAPI, RawgAPI } from '../services/api';
+import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { X, Heart, MessageCircle, Trash2 } from 'lucide-react';
+import { LibraryAPI, RawgAPI, SocialAPI, CommentAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { PriceWidget } from './PriceWidget';
 
@@ -33,6 +34,21 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
   const [gameDetails, setGameDetails] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [communityReviews, setCommunityReviews] = useState<any[]>([]);
+  const [likeBusyId, setLikeBusyId] = useState<string | null>(null);
+  const [expandedComments, setExpandedComments] = useState<string | null>(null);
+  const [commentsByReviewLog, setCommentsByReviewLog] = useState<Record<string, any[]>>({});
+  const [loadingComments, setLoadingComments] = useState<string | null>(null);
+  const [newCommentText, setNewCommentText] = useState('');
+  const [commentBusy, setCommentBusy] = useState(false);
+
+  const fetchReviews = useCallback(async () => {
+    try {
+      const { data } = await LibraryAPI.getGameReviews(game.rawgGameId);
+      setCommunityReviews(data.reviews || []);
+    } catch (err) {
+      console.error('Failed to fetch community reviews', err);
+    }
+  }, [game.rawgGameId]);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -45,21 +61,13 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
         setLoadingDetails(false);
       }
     };
-    const fetchReviews = async () => {
-      try {
-        const { data } = await LibraryAPI.getGameReviews(game.rawgGameId);
-        setCommunityReviews(data.reviews || []);
-      } catch (err) {
-        console.error('Failed to fetch community reviews', err);
-      }
-    };
     if (game.rawgGameId) {
       fetchDetails();
       fetchReviews();
     } else {
       setLoadingDetails(false);
     }
-  }, [game.rawgGameId]);
+  }, [game.rawgGameId, fetchReviews]);
 
   // Saves only the library metadata (status, rating, hours) — no review
   const handleSaveLibrary = async (e: React.FormEvent) => {
@@ -93,6 +101,87 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
     }
   };
 
+  const toggleLike = async (reviewLogId: string, gameEntryId: string, isLikedByMe: boolean) => {
+    if (!reviewLogId || likeBusyId) return;
+    setLikeBusyId(reviewLogId);
+    try {
+      if (isLikedByMe) {
+        await SocialAPI.unlikeReview(reviewLogId);
+      } else {
+        await SocialAPI.likeReview(gameEntryId, reviewLogId);
+      }
+      setCommunityReviews(prev => prev.map(r =>
+        r.reviewLogId === reviewLogId
+          ? { ...r, isLikedByMe: !isLikedByMe, likeCount: r.likeCount + (isLikedByMe ? -1 : 1) }
+          : r
+      ));
+    } catch (err) {
+      console.error('Failed to toggle like', err);
+    } finally {
+      setLikeBusyId(null);
+    }
+  };
+
+  const toggleCommentsSection = async (reviewLogId: string) => {
+    if (expandedComments === reviewLogId) {
+      setExpandedComments(null);
+      return;
+    }
+    setExpandedComments(reviewLogId);
+    setNewCommentText('');
+    if (!commentsByReviewLog[reviewLogId]) {
+      setLoadingComments(reviewLogId);
+      try {
+        const { data } = await CommentAPI.getComments(reviewLogId);
+        setCommentsByReviewLog(prev => ({ ...prev, [reviewLogId]: data.comments || [] }));
+      } catch (err) {
+        console.error('Failed to fetch comments', err);
+        setCommentsByReviewLog(prev => ({ ...prev, [reviewLogId]: [] }));
+      } finally {
+        setLoadingComments(null);
+      }
+    }
+  };
+
+  const handleAddComment = async (gameEntryId: string, reviewLogId: string) => {
+    if (!newCommentText.trim() || commentBusy) return;
+    setCommentBusy(true);
+    try {
+      const { data } = await CommentAPI.addComment(gameEntryId, reviewLogId, newCommentText.trim());
+      setCommentsByReviewLog(prev => ({
+        ...prev,
+        [reviewLogId]: [...(prev[reviewLogId] || []), data.comment],
+      }));
+      setCommunityReviews(prev => prev.map(r =>
+        r.reviewLogId === reviewLogId
+          ? { ...r, commentCount: (r.commentCount || 0) + 1 }
+          : r
+      ));
+      setNewCommentText('');
+    } catch (err) {
+      console.error('Failed to add comment', err);
+    } finally {
+      setCommentBusy(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string, reviewLogId: string) => {
+    try {
+      await CommentAPI.deleteComment(commentId);
+      setCommentsByReviewLog(prev => ({
+        ...prev,
+        [reviewLogId]: (prev[reviewLogId] || []).filter(c => c._id !== commentId),
+      }));
+      setCommunityReviews(prev => prev.map(r =>
+        r.reviewLogId === reviewLogId
+          ? { ...r, commentCount: Math.max(0, (r.commentCount || 0) - 1) }
+          : r
+      ));
+    } catch (err) {
+      console.error('Failed to delete comment', err);
+    }
+  };
+
   // Appends a new review log without touching library metadata
   const handleAddLog = async () => {
     if (!newReviewText.trim() || !game._id) return;
@@ -109,6 +198,8 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
       setReviewLogs(updatedLogs);
       setNewReviewText('');
       setHasAddedLog(true);
+      // Refetch so the new log shows up with its server reviewLogId (needed for comments)
+      await fetchReviews();
     } catch (err) {
       console.error(err);
       alert('Failed to add log');
@@ -163,11 +254,142 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
     );
   });
 
+  // Renders a single review card with like + comment thread UI.
+  // Used for both the user's own reviews and other users' reviews so that
+  // comments are visible everywhere (the like button is hidden on own reviews).
+  const renderReviewCard = (log: any, idx: number) => (
+    <div key={(log.reviewLogId || 'r') + '-' + idx} style={{
+      padding: '1rem 1.1rem',
+      background: 'var(--bg-surface-2)',
+      borderRadius: '10px',
+      border: '1px solid var(--border)',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.4rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem' }}>
+          <Link to={`/u/${log.username}`} style={{ fontWeight: 700, color: 'var(--accent-violet)', textDecoration: 'none' }}>
+            {log.username}
+          </Link>
+          <span style={{ color: 'var(--text-muted)' }}>·</span>
+          <span style={{ color: 'var(--text-muted)' }}>
+            {log.createdAt ? new Date(log.createdAt).toLocaleDateString() : 'Unknown date'}
+          </span>
+          {log.hoursPlayed > 0 && (
+            <>
+              <span style={{ color: 'var(--text-muted)' }}>·</span>
+              <span style={{ color: 'var(--text-muted)', fontFamily: "'DM Mono', monospace" }}>
+                {log.hoursPlayed}h
+              </span>
+            </>
+          )}
+        </div>
+        {log.rating > 0 && <div style={{ display: 'flex', gap: '2px' }}>{renderStaticStars(log.rating)}</div>}
+      </div>
+      <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.6 }}>{log.text}</p>
+      {log.reviewLogId && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.6rem' }}>
+          {!log.isCurrentUser && (
+            <button
+              onClick={() => toggleLike(log.reviewLogId, log.gameEntryId, log.isLikedByMe)}
+              disabled={likeBusyId === log.reviewLogId}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.3rem',
+                background: 'none', border: 'none', cursor: 'pointer',
+                padding: 0,
+                color: log.isLikedByMe ? 'var(--accent)' : 'var(--text-muted)',
+                fontSize: '0.8rem',
+                opacity: likeBusyId === log.reviewLogId ? 0.6 : 1,
+              }}
+            >
+              <Heart size={14} fill={log.isLikedByMe ? 'currentColor' : 'none'} />
+              {log.likeCount > 0 ? log.likeCount : ''}
+            </button>
+          )}
+          {log.isCurrentUser && log.likeCount > 0 && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+              <Heart size={14} fill="currentColor" />
+              {log.likeCount}
+            </span>
+          )}
+          <button
+            onClick={() => toggleCommentsSection(log.reviewLogId)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.3rem',
+              background: 'none', border: 'none', cursor: 'pointer',
+              padding: 0,
+              color: expandedComments === log.reviewLogId ? 'var(--accent-violet)' : 'var(--text-muted)',
+              fontSize: '0.8rem',
+            }}
+          >
+            <MessageCircle size={14} />
+            {log.commentCount > 0 ? log.commentCount : ''}
+          </button>
+        </div>
+      )}
+
+      {log.reviewLogId && expandedComments === log.reviewLogId && (
+        <div style={{
+          marginTop: '0.75rem',
+          paddingTop: '0.75rem',
+          borderTop: '1px solid var(--border)',
+          display: 'flex', flexDirection: 'column', gap: '0.6rem',
+        }}>
+          {loadingComments === log.reviewLogId ? (
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-faint)', fontStyle: 'italic' }}>Loading comments…</span>
+          ) : (
+            (commentsByReviewLog[log.reviewLogId] || []).map((comment: any) => (
+              <div key={comment._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>
+                  <span style={{ fontWeight: 700, color: 'var(--accent-violet)' }}>
+                    {comment.username || 'Anonymous'}
+                  </span>{' '}
+                  <span style={{ color: 'var(--text-primary)' }}>{comment.text}</span>
+                </div>
+                {comment.commenterId === user?.id && (
+                  <button
+                    onClick={() => handleDeleteComment(comment._id, log.reviewLogId)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', flexShrink: 0 }}
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input
+              type="text"
+              value={newCommentText}
+              onChange={(e) => setNewCommentText(e.target.value)}
+              placeholder="Write a comment…"
+              style={{ flex: 1, fontSize: '0.82rem', padding: '0.45rem 0.7rem' }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && log.gameEntryId) {
+                  handleAddComment(log.gameEntryId, log.reviewLogId);
+                }
+              }}
+            />
+            <button
+              type="button"
+              disabled={commentBusy || !newCommentText.trim()}
+              onClick={() => handleAddComment(log.gameEntryId, log.reviewLogId)}
+              className="btn-secondary"
+              style={{ padding: '0.4rem 0.8rem', fontSize: '0.78rem', flexShrink: 0 }}
+            >
+              Send
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   const currentStatusOption = STATUS_OPTIONS.find(s => s.value === status);
+  const myReviews = communityReviews.filter((r: any) => r.isCurrentUser);
+  const otherReviews = communityReviews.filter((r: any) => !r.isCurrentUser);
 
   return (
     <div
-      onClick={(e) => { if (e.target === e.currentTarget) { hasAddedLog ? onUpdated() : onClose(); } }}
+      onClick={(e) => { if (e.target === e.currentTarget) { if (hasAddedLog) { onUpdated(); } else { onClose(); } } }}
       style={{
         position: 'fixed', inset: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.88)',
@@ -207,7 +429,7 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
 
         {/* Close button */}
         <button
-          onClick={() => { hasAddedLog ? onUpdated() : onClose(); }}
+          onClick={() => { if (hasAddedLog) { onUpdated(); } else { onClose(); } }}
           style={{
             position: 'absolute', top: '1rem', right: '1rem',
             background: 'rgba(255,255,255,0.08)',
@@ -367,7 +589,7 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
                 borderBottom: '1px solid var(--border)',
               }}>
                 <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Review Logs</h3>
-                {reviewLogs.length > 0 && (
+                {myReviews.length > 0 && (
                   <span style={{
                     background: 'var(--bg-surface-2)',
                     border: '1px solid var(--border)',
@@ -377,61 +599,24 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
                     color: 'var(--text-muted)',
                     fontFamily: "'DM Mono', monospace",
                   }}>
-                    {reviewLogs.length}
+                    {myReviews.length}
                   </span>
                 )}
               </div>
 
-              {/* Existing logs */}
+              {/* Your own reviews — rendered with comment threads so you can read replies */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                {reviewLogs.map((log: any, idx: number) => (
-                  <div key={idx} style={{
-                    padding: '1rem 1.1rem',
-                    background: 'var(--bg-surface-2)',
-                    borderRadius: '10px',
-                    border: '1px solid var(--border)',
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.4rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem' }}>
-                        <span style={{ fontWeight: 700, color: 'var(--accent-violet)' }}>{user?.username || 'You'}</span>
-                        <span style={{ color: 'var(--text-muted)' }}>·</span>
-                        <span style={{ color: 'var(--text-muted)' }}>
-                          {log.createdAt ? new Date(log.createdAt).toLocaleDateString() : 'Previous log'}
-                        </span>
-                        {log.hoursPlayed !== undefined && (
-                          <>
-                            <span style={{ color: 'var(--text-muted)' }}>·</span>
-                            <span style={{ color: 'var(--text-muted)', fontFamily: "'DM Mono', monospace" }}>
-                              {log.hoursPlayed}h
-                            </span>
-                          </>
-                        )}
-                      </div>
-                      {log.rating > 0 && <div style={{ display: 'flex', gap: '2px' }}>{renderStaticStars(log.rating)}</div>}
-                    </div>
-                    <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.6 }}>{log.text}</p>
-                  </div>
-                ))}
-
-                {/* Legacy review */}
-                {game.review && reviewLogs.length === 0 && (
-                  <div style={{
-                    padding: '1rem 1.1rem',
-                    background: 'var(--bg-surface-2)',
-                    borderRadius: '10px',
-                    border: '1px solid var(--border)',
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                      <span style={{ fontWeight: 700, color: 'var(--accent-violet)', fontSize: '0.82rem' }}>{user?.username || 'You'}</span>
-                      {game.rating > 0 && <div style={{ display: 'flex', gap: '2px' }}>{renderStaticStars(game.rating)}</div>}
-                    </div>
-                    <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.6 }}>{game.review}</p>
-                  </div>
+                {myReviews.length > 0 ? (
+                  myReviews.map((log: any, idx: number) => renderReviewCard(log, idx))
+                ) : (
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-faint)', fontStyle: 'italic' }}>
+                    No reviews yet — add your first log below.
+                  </span>
                 )}
               </div>
 
               {/* Community Reviews Section */}
-              {communityReviews.length > 0 && (
+              {otherReviews.length > 0 && (
                 <div style={{ marginTop: '2rem' }}>
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: '0.75rem',
@@ -449,39 +634,12 @@ export const LibraryEntryModal: React.FC<LibraryEntryModalProps> = ({ game, onCl
                       color: 'var(--text-muted)',
                       fontFamily: "'DM Mono', monospace",
                     }}>
-                      {communityReviews.length}
+                      {otherReviews.length}
                     </span>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                    {communityReviews.map((log: any, idx: number) => (
-                      <div key={'comm-'+idx} style={{
-                        padding: '1rem 1.1rem',
-                        background: 'var(--bg-surface-2)',
-                        borderRadius: '10px',
-                        border: '1px solid var(--border)',
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.4rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem' }}>
-                            <span style={{ fontWeight: 700, color: 'var(--accent-violet)' }}>{log.username}</span>
-                            <span style={{ color: 'var(--text-muted)' }}>·</span>
-                            <span style={{ color: 'var(--text-muted)' }}>
-                              {log.createdAt ? new Date(log.createdAt).toLocaleDateString() : 'Unknown date'}
-                            </span>
-                            {log.hoursPlayed > 0 && (
-                              <>
-                                <span style={{ color: 'var(--text-muted)' }}>·</span>
-                                <span style={{ color: 'var(--text-muted)', fontFamily: "'DM Mono', monospace" }}>
-                                  {log.hoursPlayed}h
-                                </span>
-                              </>
-                            )}
-                          </div>
-                          {log.rating > 0 && <div style={{ display: 'flex', gap: '2px' }}>{renderStaticStars(log.rating)}</div>}
-                        </div>
-                        <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.6 }}>{log.text}</p>
-                      </div>
-                    ))}
+                    {otherReviews.map((log: any, idx: number) => renderReviewCard(log, idx))}
                   </div>
                 </div>
               )}

@@ -1,5 +1,7 @@
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { GameEntry } from '../models/GameEntry';
+import { Like } from '../models/Like';
+import { Comment } from '../models/Comment';
 import { AuthRequest } from '../middleware/authMiddleware';
 
 // GET / - Get user's library (optional status filter)
@@ -21,6 +23,20 @@ export const getLibrary = async (req: AuthRequest, res: Response): Promise<void>
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error fetching library' });
+    }
+};
+
+// GET /by-rawg/:rawgGameId - Get the current user's existing entry for a RAWG game, if any.
+// Lets the frontend show a single game as one entity (status/rating/hours/logs)
+// regardless of whether the user reached it from search, a game detail page, or their library.
+export const getGameEntryByRawgId = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { rawgGameId } = req.params;
+        const entry = await GameEntry.findOne({ userId: req.userId, rawgGameId: Number(rawgGameId) });
+        res.json({ entry: entry || null });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching game entry' });
     }
 };
 
@@ -115,16 +131,16 @@ export const deleteGame = async (req: AuthRequest, res: Response): Promise<void>
     }
 };
 
-// GET /reviews/:rawgGameId - Get community reviews for a game
+// GET /reviews/:rawgGameId - Get community reviews for a game (public)
 export const getGameReviews = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const { rawgGameId } = req.params;
-        
-        // Find other users' entries for this game that have reviews
-        // Exclude current user — they already see their own logs in the Review Logs section
+
+        // Return all reviews for this game, including the requester's own.
+        // Own reviews are flagged with isCurrentUser so the client can render
+        // them in a separate section (and still show their comment threads).
         const entries = await GameEntry.find({
             rawgGameId,
-            userId: { $ne: req.userId },
             $or: [
                 { 'reviewLogs.0': { $exists: true } },
                 { review: { $ne: '', $exists: true } }
@@ -132,10 +148,10 @@ export const getGameReviews = async (req: AuthRequest, res: Response): Promise<v
         });
 
         let allReviews: any[] = [];
-        
+
         entries.forEach(entry => {
             const username = entry.username || 'Anonymous';
-            
+
             if (entry.reviewLogs && entry.reviewLogs.length > 0) {
                 entry.reviewLogs.forEach(log => {
                     allReviews.push({
@@ -145,6 +161,11 @@ export const getGameReviews = async (req: AuthRequest, res: Response): Promise<v
                         hoursPlayed: log.hoursPlayed,
                         createdAt: log.createdAt,
                         isCurrentUser: req.userId === entry.userId,
+                        gameEntryId: entry._id.toString(),
+                        reviewLogId: (log as any)._id?.toString(),
+                        likeCount: 0,
+                        isLikedByMe: false,
+                        commentCount: 0,
                     });
                 });
             } else if (entry.review) {
@@ -155,17 +176,92 @@ export const getGameReviews = async (req: AuthRequest, res: Response): Promise<v
                     hoursPlayed: entry.hoursPlayed,
                     createdAt: (entry as any).updatedAt || (entry as any).createdAt,
                     isCurrentUser: req.userId === entry.userId,
+                    gameEntryId: entry._id.toString(),
+                    reviewLogId: undefined,
+                    likeCount: 0,
+                    isLikedByMe: false,
+                    commentCount: 0,
                 });
             }
         });
 
-        // Sort descending by date
         allReviews.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+        // Bulk-fetch like counts and current user's likes to avoid N+1
+        const reviewLogIds = allReviews
+            .filter(r => r.reviewLogId)
+            .map(r => r.reviewLogId);
+
+        if (reviewLogIds.length > 0) {
+            const [likeCounts, commentCounts] = await Promise.all([
+                Like.aggregate([
+                    { $match: { reviewLogId: { $in: reviewLogIds } } },
+                    { $group: { _id: '$reviewLogId', count: { $sum: 1 } } }
+                ]),
+                Comment.aggregate([
+                    { $match: { reviewLogId: { $in: reviewLogIds } } },
+                    { $group: { _id: '$reviewLogId', count: { $sum: 1 } } }
+                ])
+            ]);
+
+            const likeCountMap = new Map(likeCounts.map((l: any) => [l._id, l.count]));
+            const commentCountMap = new Map(commentCounts.map((c: any) => [c._id, c.count]));
+
+            let likedSet = new Set<string>();
+            if (req.userId) {
+                const myLikes = await Like.find({
+                    likerId: req.userId,
+                    reviewLogId: { $in: reviewLogIds }
+                }).select('reviewLogId');
+                likedSet = new Set(myLikes.map(l => l.reviewLogId));
+            }
+
+            allReviews = allReviews.map(r => ({
+                ...r,
+                likeCount: r.reviewLogId ? (likeCountMap.get(r.reviewLogId) ?? 0) : 0,
+                isLikedByMe: r.reviewLogId ? likedSet.has(r.reviewLogId) : false,
+                commentCount: r.reviewLogId ? (commentCountMap.get(r.reviewLogId) ?? 0) : 0,
+            }));
+        }
 
         res.json({ reviews: allReviews });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error fetching community reviews' });
+    }
+};
+
+// GET /stats/public/:userId - Get public stats for any user (no auth)
+export const getPublicStats = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { userId } = req.params;
+
+        const [stats] = await GameEntry.aggregate([
+            { $match: { userId } },
+            {
+                $group: {
+                    _id: null,
+                    total: { $sum: 1 },
+                    playing: { $sum: { $cond: [{ $eq: ['$status', 'playing'] }, 1, 0] } },
+                    completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+                    backlog: { $sum: { $cond: [{ $eq: ['$status', 'backlog'] }, 1, 0] } },
+                    dropped: { $sum: { $cond: [{ $eq: ['$status', 'dropped'] }, 1, 0] } },
+                    wishlist: { $sum: { $cond: [{ $eq: ['$status', 'wishlist'] }, 1, 0] } },
+                    totalHoursPlayed: { $sum: { $ifNull: ['$hoursPlayed', 0] } },
+                    avgRating: { $avg: '$rating' }
+                }
+            }
+        ]);
+
+        const { _id: _, ...rest } = stats ?? {};
+        const normalizedStats = stats
+            ? { ...rest, avgRating: stats.avgRating ?? 0 }
+            : { total: 0, playing: 0, completed: 0, backlog: 0, dropped: 0, wishlist: 0, totalHoursPlayed: 0, avgRating: 0 };
+
+        res.json({ stats: normalizedStats });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching public stats' });
     }
 };
 
@@ -191,14 +287,239 @@ export const getStats = async (req: AuthRequest, res: Response): Promise<void> =
             }
         ]);
 
-        res.json({
-            stats: stats || {
-                total: 0, playing: 0, completed: 0, backlog: 0,
-                dropped: 0, wishlist: 0, totalHoursPlayed: 0, avgRating: 0
-            }
-        });
+        const { _id: _, ...rest } = stats ?? {};
+        const normalizedStats = stats
+            ? { ...rest, avgRating: stats.avgRating ?? 0 }
+            : { total: 0, playing: 0, completed: 0, backlog: 0, dropped: 0, wishlist: 0, totalHoursPlayed: 0, avgRating: 0 };
+
+        res.json({ stats: normalizedStats });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error fetching stats' });
+    }
+};
+
+// POST /likes - Like a specific reviewLog entry
+export const likeReviewLog = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { gameEntryId, reviewLogId } = req.body;
+
+        if (!gameEntryId || !reviewLogId) {
+            res.status(400).json({ message: 'gameEntryId and reviewLogId are required' });
+            return;
+        }
+
+        await Like.create({ likerId: req.userId, gameEntryId, reviewLogId });
+        res.status(201).json({ message: 'Liked successfully' });
+    } catch (error: any) {
+        if (error.code === 11000) {
+            res.status(409).json({ message: 'Already liked' });
+            return;
+        }
+        console.error(error);
+        res.status(500).json({ message: 'Error liking review' });
+    }
+};
+
+// DELETE /likes/:reviewLogId - Unlike a reviewLog entry
+export const unlikeReviewLog = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { reviewLogId } = req.params;
+        const deleted = await Like.findOneAndDelete({ likerId: req.userId, reviewLogId });
+
+        if (!deleted) {
+            res.status(404).json({ message: 'Like not found' });
+            return;
+        }
+
+        res.json({ message: 'Unliked successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error unliking review' });
+    }
+};
+
+// POST /comments - Create a comment on a reviewLog
+export const createComment = async (req: AuthRequest, res: Response): Promise<void> => {
+    const { gameEntryId, reviewLogId, text } = req.body;
+
+    if (!gameEntryId || !reviewLogId || !text) {
+        res.status(400).json({ message: 'gameEntryId, reviewLogId, and text are required' });
+        return;
+    }
+
+    try {
+        const comment = await Comment.create({ commenterId: req.userId, username: req.username, gameEntryId, reviewLogId, text });
+        res.status(201).json({ comment });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error creating comment' });
+    }
+};
+
+// GET /comments/:reviewLogId - List comments for a reviewLog (public)
+export const getComments = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { reviewLogId } = req.params;
+        const comments = await Comment.find({ reviewLogId }).sort({ createdAt: 1 });
+        res.json({ comments });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching comments' });
+    }
+};
+
+// GET /feed - Activity feed for a list of followed userIds
+export const getActivityFeed = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userIdsParam = req.query.userIds as string;
+        const page = Math.max(1, parseInt(req.query.page as string) || 1);
+        const PAGE_SIZE = 20;
+
+        if (!userIdsParam || userIdsParam.trim() === '') {
+            res.json({ items: [], page: 1, hasMore: false });
+            return;
+        }
+
+        const userIds = userIdsParam.split(',').map(id => id.trim()).filter(Boolean);
+        if (userIds.length === 0) {
+            res.json({ items: [], page: 1, hasMore: false });
+            return;
+        }
+
+        const entries = await GameEntry.find({ userId: { $in: userIds } });
+
+        const items: any[] = [];
+        entries.forEach(entry => {
+            const base = {
+                username: entry.username || 'Anonymous',
+                rawgGameId: entry.rawgGameId,
+                title: entry.title,
+                coverImage: entry.coverImage,
+                gameEntryId: entry._id.toString(),
+            };
+
+            if (entry.reviewLogs && entry.reviewLogs.length > 0) {
+                entry.reviewLogs.forEach(log => {
+                    items.push({
+                        ...base,
+                        type: 'review',
+                        text: log.text,
+                        rating: log.rating,
+                        createdAt: log.createdAt,
+                        reviewLogId: (log as any)._id?.toString(),
+                        likeCount: 0,
+                        isLikedByMe: false,
+                        commentCount: 0,
+                    });
+                });
+            } else if (entry.status === 'completed') {
+                items.push({
+                    ...base,
+                    type: 'completed',
+                    createdAt: entry.completedAt || (entry as any).updatedAt,
+                });
+            }
+        });
+
+        items.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+
+        const total = items.length;
+        const start = (page - 1) * PAGE_SIZE;
+        const paginatedItems = items.slice(start, start + PAGE_SIZE);
+        const hasMore = start + PAGE_SIZE < total;
+
+        const reviewLogIds = paginatedItems
+            .filter(i => i.type === 'review' && i.reviewLogId)
+            .map(i => i.reviewLogId);
+
+        if (reviewLogIds.length > 0) {
+            const [likeCounts, commentCounts] = await Promise.all([
+                Like.aggregate([
+                    { $match: { reviewLogId: { $in: reviewLogIds } } },
+                    { $group: { _id: '$reviewLogId', count: { $sum: 1 } } }
+                ]),
+                Comment.aggregate([
+                    { $match: { reviewLogId: { $in: reviewLogIds } } },
+                    { $group: { _id: '$reviewLogId', count: { $sum: 1 } } }
+                ])
+            ]);
+
+            const likeCountMap = new Map(likeCounts.map((l: any) => [l._id, l.count]));
+            const commentCountMap = new Map(commentCounts.map((c: any) => [c._id, c.count]));
+
+            let likedSet = new Set<string>();
+            if (req.userId) {
+                const myLikes = await Like.find({
+                    likerId: req.userId,
+                    reviewLogId: { $in: reviewLogIds }
+                }).select('reviewLogId');
+                likedSet = new Set(myLikes.map(l => l.reviewLogId));
+            }
+
+            paginatedItems.forEach(item => {
+                if (item.type === 'review' && item.reviewLogId) {
+                    item.likeCount = likeCountMap.get(item.reviewLogId) ?? 0;
+                    item.isLikedByMe = likedSet.has(item.reviewLogId);
+                    item.commentCount = commentCountMap.get(item.reviewLogId) ?? 0;
+                }
+            });
+        }
+
+        res.json({ items: paginatedItems, page, hasMore });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching activity feed' });
+    }
+};
+
+// GET /common/:otherUserId - Games in common between current user and another user
+export const getCommonGames = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { otherUserId } = req.params;
+
+        if (otherUserId === req.userId) {
+            res.status(400).json({ message: 'Cannot compare with yourself' });
+            return;
+        }
+
+        const [myEntries, theirEntries] = await Promise.all([
+            GameEntry.find({ userId: req.userId }).select('rawgGameId title coverImage'),
+            GameEntry.find({ userId: otherUserId }).select('rawgGameId title coverImage')
+        ]);
+
+        const theirGameIds = new Set(theirEntries.map(e => e.rawgGameId));
+        const commonGames = myEntries
+            .filter(e => theirGameIds.has(e.rawgGameId))
+            .map(e => ({ rawgGameId: e.rawgGameId, title: e.title, coverImage: e.coverImage }));
+
+        res.json({ commonGames });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error fetching common games' });
+    }
+};
+
+// DELETE /comments/:commentId - Delete own comment
+export const deleteComment = async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const { commentId } = req.params;
+        const comment = await Comment.findById(commentId);
+
+        if (!comment) {
+            res.status(404).json({ message: 'Comment not found' });
+            return;
+        }
+
+        if (comment.commenterId !== req.userId) {
+            res.status(403).json({ message: 'Not authorized to delete this comment' });
+            return;
+        }
+
+        await comment.deleteOne();
+        res.json({ message: 'Comment deleted' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error deleting comment' });
     }
 };

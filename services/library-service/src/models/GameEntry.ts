@@ -1,6 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import { GameStatus } from '../../../../shared/types/interfaces';
 
-export type GameStatus = 'playing' | 'completed' | 'dropped' | 'wishlist';
+export type { GameStatus };
 
 export interface IReviewLog {
     text: string;
@@ -34,7 +35,7 @@ const GameEntrySchema: Schema = new Schema({
     coverImage: { type: String, default: '' },
     status: {
         type: String,
-        enum: ['playing', 'completed', 'dropped', 'wishlist'],
+        enum: ['playing', 'completed', 'backlog', 'dropped', 'wishlist'],
         default: 'wishlist',
         required: true
     },

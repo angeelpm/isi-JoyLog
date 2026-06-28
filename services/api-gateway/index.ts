@@ -18,24 +18,30 @@ app.use((req, res, next) => {
 });
 
 // Gateway Proxies must be declared BEFORE express.json() so it doesn't consume the body stream
-app.use('/api/auth', createProxyMiddleware({
+app.use('/v1/auth', createProxyMiddleware({
     target: 'http://auth-service:3001',
     changeOrigin: true,
-    pathRewrite: { '^/api/auth': '' }
+    pathRewrite: { '^/v1/auth': '' }
 }));
 
-app.use('/api/library', createProxyMiddleware({
+app.use('/v1/library', createProxyMiddleware({
     target: 'http://library-service:3002',
     changeOrigin: true,
-    pathRewrite: { '^/api/library': '' }
+    pathRewrite: { '^/v1/library': '' }
+}));
+
+app.use('/v1/ai', createProxyMiddleware({
+    target: 'http://ai-service:3003',
+    changeOrigin: true,
+    pathRewrite: { '^/v1/ai': '' }
 }));
 
 // RAWG API proxy - avoids CORS issues from frontend
-app.use('/api/games', createProxyMiddleware({
+app.use('/v1/games', createProxyMiddleware({
     target: 'https://api.rawg.io/api',
     changeOrigin: true,
     pathRewrite: (path, req) => {
-        let newPath = path.replace(/^\/api\/games/, '');
+        let newPath = path.replace(/^\/v1\/games/, '');
         const rawgKey = process.env.RAWG_API_KEY || 'b362eb04cebe47c5bc5483a9de06c429';
         if (rawgKey) {
             const separator = newPath.includes('?') ? '&' : '?';
