@@ -251,7 +251,7 @@ Cloudflare DNS  (joylog.yourdomain.com)
 cloudflared container
     ↓  HTTP internal
 frontend container — nginx :80
-    ├── /api/*  →  proxy_pass  api-gateway:3000
+    ├── /v1/*  →  proxy_pass  api-gateway:3000
     └── /*      →  React SPA static files (built dist/)
 
 Internal Docker network (not exposed externally):
@@ -296,7 +296,7 @@ Prevents `node_modules`, `.env`, `.git`, and `frontend/dist` from being sent to 
 ### `nginx/nginx.conf`
 
 nginx routing rules:
-- `location /api/` — reverse proxy to `http://api-gateway:3000`, forwarding real IP headers
+- `location /v1/` — reverse proxy to `http://api-gateway:3000`, forwarding real IP headers
 - `location /` — serve React SPA from `/usr/share/nginx/html`, with `try_files` fallback to `index.html` for client-side routing
 
 ### `docker-compose.prod.yml`

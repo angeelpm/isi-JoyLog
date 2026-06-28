@@ -67,7 +67,7 @@ describe('LoginPage Component', () => {
     fireEvent.click(screen.getByRole('button', { name: /Sign In/i }));
 
     await waitFor(() => {
-      expect(api.post).toHaveBeenCalledWith('/api/auth/login', {
+      expect(api.post).toHaveBeenCalledWith('/v1/auth/login', {
         usernameOrEmail: 'testuser',
         password: 'password123'
       });
